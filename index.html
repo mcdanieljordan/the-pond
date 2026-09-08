@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>The Pond — BullFrogBuddy Beta</title>
+
+<!-- SUPABASE SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+  /* TOKENS */
+  :root {
+    --pond: #1a3a2a;
+    --pond-mid: #244d38;
+    --lily: #4ade80;
+    --lily-dim: #86efac;
+    --water: #0d2a1e;
+    --foam: #f0fdf4;
+    --mist: #bbf7d0;
+    --gold: #fbbf24;
+    --red: #f87171;
+    --text: #e2f5eb;
+    --text-dim: #86efac;
+    --card: rgba(26,58,42,0.85);
+    --card-border: rgba(74,222,128,0.18);
+    --radius: 14px;
+    --font: 'Segoe UI', system-ui, sans-serif;
+  }
+
+  /* RESET */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font);
+    background: var(--water);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* POND BG */
+  body::before {
+    content: '';
+    position: fixed; inset: 0; z-index: 0;
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 0%, #1e4d33 0%, transparent 70%),
+      radial-gradient(ellipse 60% 40% at 80% 100%, #0a2818 0%, transparent 60%),
+      var(--water);
+    pointer-events: none;
+  }
+
+  /* LAYOUT */
+  #app { position: relative; z-index: 1; min-height: 100vh; }
+
+  /* LOGIN SCREEN */
+  #login-screen {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    min-height: 100vh; padding: 2rem; text-align: center;
+  }
+
+  .pond-logo {
+    font-size: 5rem; margin-bottom: 1rem;
+    filter: drop-shadow(0 0 20px rgba(74,222,128,0.4));
+    animation: float 3s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%,100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+
+  .pond-title {
+    font-size: 2.4rem; font-weight: 700; letter-spacing: -0.03em;
+    color: var(--lily); margin-bottom: 0.25rem;
+  }
+
+  .pond-sub {
+    font-size: 1rem; color: var(--text-dim); margin-bottom: 2.5rem;
+    letter-spacing: 0.05em;
+  }
+
+  .btn-google {
+    display: flex; align-items: center; gap: 0.75rem;
+    background: var(--foam); color: #1a3a2a;
+    font-size: 1rem; font-weight: 600;
+    padding: 0.85rem 2rem; border-radius: 50px;
+    border: none; cursor: pointer;
+    box-shadow: 0 4px 24px rgba(74,222,128,0.2);
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+
+  .btn-google:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 32px rgba(74,222,128,0.35);
+  }
+
+  .btn-google svg { width: 20px; height: 20px; }
+
+  /* MAIN SHELL */
+  #main-shell { display: none; flex-direction: column; min-height: 100vh; }
+
+  /* HEADER */
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.9rem 1.5rem;
+    background: rgba(13,42,30,0.9);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--card-border);
+    position: sticky; top: 0; z-index: 100;
+  }
+
+  .header-brand { display: flex; align-items: center; gap: 0.6rem; }
+  .header-brand span:first-child { font-size: 1.6rem; }
+  .header-brand strong { font-size: 1.1rem; color: var(--lily); font-weight: 700; }
+  .header-brand em { font-size: 0.75rem; color: var(--text-dim); font-style: normal; }
+
+  .header-user { display: flex; align-items: center; gap: 0.75rem; }
+  .avatar { width: 34px; height: 34px; border-radius: 50%; border: 2px solid var(--lily); object-fit: cover; }
+  .avatar-placeholder {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: var(--pond-mid); border: 2px solid var(--lily);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.85rem; font-weight: 700; color: var(--lily);
+  }
+
+  .btn-signout {
+    background: transparent; border: 1px solid var(--card-border);
+    color: var(--text-dim); font-size: 0.8rem; padding: 0.35rem 0.85rem;
+    border-radius: 50px; cursor: pointer; transition: border-color 0.15s, color 0.15s;
+  }
+  .btn-signout:hover { border-color: var(--red); color: var(--red); }
+
+  /* NAV TABS */
+  nav {
+    display: flex; gap: 0.25rem;
+    padding: 0.75rem 1.5rem 0;
+    border-bottom: 1px solid var(--card-border);
+    background: rgba(13,42,30,0.6);
+  }
+
+  .tab {
+    padding: 0.55rem 1.1rem; border-radius: 8px 8px 0 0;
+    font-size: 0.88rem; font-weight: 600; cursor: pointer;
+    border: 1px solid transparent; border-bottom: none;
+    color: var(--text-dim); background: transparent;
+    transition: color 0.15s, background 0.15s;
+  }
+
+  .tab.active {
+    color: var(--lily); background: rgba(74,222,128,0.08);
+    border-color: var(--card-border);
+  }
+
+  .tab:hover:not(.active) { color: var(--text); }
+
+  /* CONTENT AREA */
+  #content { padding: 1.5rem; flex: 1; }
+
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* SECTION HEADING */
+  .section-heading {
+    font-size: 1.3rem; font-weight: 700; color: var(--lily);
+    margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.5rem;
+  }
+
+  /* CARD */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    backdrop-filter: blur(8px);
+  }
+
+  /* CLASS SELECTOR */
+  .class-bar {
+    display: flex; align-items: center; gap: 0.75rem;
+    margin-bottom: 1.25rem; flex-wrap: wrap;
+  }
+
+  .class-pill {
+    padding: 0.45rem 1rem; border-radius: 50px;
+    font-size: 0.85rem; font-weight: 600; cursor: pointer;
+    border: 1px solid var(--card-border);
+    background: transparent; color: var(--text-dim);
+    transition: all 0.15s;
+  }
+
+  .class-pill.active {
+    background: var(--lily); color: var(--pond); border-color: var(--lily);
+  }
+
+  .class-pill:hover:not(.active) { border-color: var(--lily-dim); color: var(--text); }
+
+  /* BUTTONS */
+  .btn {
+    padding: 0.55rem 1.1rem; border-radius: 8px;
+    font-size: 0.88rem; font-weight: 600; cursor: pointer;
+    border: none; transition: opacity 0.15s, transform 0.1s;
+  }
+  .btn:hover { opacity: 0.88; transform: translateY(-1px); }
+  .btn:active { transform: translateY(0); }
+
+  .btn-primary { background: var(--lily); color: var(--pond); }
+  .btn-ghost {
+    background: transparent; color: var(--text-dim);
+    border: 1px solid var(--card-border);
+  }
+  .btn-ghost:hover { color: var(--text); border-color: var(--lily-dim); }
+  .btn-danger { background: transparent; color: var(--red); border: 1px solid rgba(248,113,113,0.3); }
+  .btn-danger:hover { background: rgba(248,113,113,0.1); }
+  .btn-sm { padding: 0.35rem 0.75rem; font-size: 0.8rem; }
+
+  /* ADD CLASS FORM */
+  .add-class-row {
+    display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap;
+  }
+
+  input[type="text"], input[type="email"], select {
+    background: rgba(13,42,30,0.8);
+    border: 1px solid var(--card-border);
+    color: var(--text); font-size: 0.9rem;
+    padding: 0.55rem 0.85rem; border-radius: 8px;
+    outline: none; transition: border-color 0.15s;
+    font-family: var(--font);
+  }
+
+  input[type="text"]:focus, input[type="email"]:focus, select:focus {
+    border-color: var(--lily);
+  }
+
+  input::placeholder { color: var(--text-dim); opacity: 0.6; }
+
+  /* STUDENT TABLE */
+  .student-list { margin-top: 1rem; }
+
+  .student-row {
+    display: flex; align-items: center; gap: 0.75rem;
+    padding: 0.7rem 0.5rem; border-bottom: 1px solid rgba(74,222,128,0.08);
+    transition: background 0.1s;
+  }
+
+  .student-row:hover { background: rgba(74,222,128,0.04); border-radius: 8px; }
+
+  .student-avatar {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--pond-mid); border: 1px solid var(--card-border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.1rem; flex-shrink: 0;
+  }
+
+  .student-name { flex: 1; font-size: 0.95rem; font-weight: 600; }
+  .student-meta { font-size: 0.78rem; color: var(--text-dim); }
+
+  .student-actions { display: flex; gap: 0.4rem; }
+
+  /* ADD STUDENT FORM */
+  .add-student-form {
+    display: flex; gap: 0.5rem; margin-top: 1rem; flex-wrap: wrap;
+    padding-top: 1rem; border-top: 1px solid var(--card-border);
+  }
+
+  /* EMPTY STATE */
+  .empty {
+    text-align: center; padding: 2.5rem 1rem;
+    color: var(--text-dim); font-size: 0.9rem;
+  }
+  .empty-icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
+
+  /* APP LAUNCHER */
+  .app-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 1rem;
+  }
+
+  .app-card {
+    background: var(--card); border: 1px solid var(--card-border);
+    border-radius: var(--radius); padding: 1.5rem;
+    cursor: pointer; transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+    text-decoration: none; display: block;
+    backdrop-filter: blur(8px);
+  }
+
+  .app-card:hover {
+    transform: translateY(-3px);
+    border-color: var(--lily-dim);
+    box-shadow: 0 8px 32px rgba(74,222,128,0.12);
+  }
+
+  .app-icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
+  .app-name { font-size: 1.05rem; font-weight: 700; color: var(--lily); margin-bottom: 0.35rem; }
+  .app-desc { font-size: 0.82rem; color: var(--text-dim); line-height: 1.5; }
+
+  .app-badge {
+    display: inline-block; margin-top: 0.75rem;
+    padding: 0.2rem 0.6rem; border-radius: 50px;
+    font-size: 0.72rem; font-weight: 700;
+    background: rgba(74,222,128,0.15); color: var(--lily);
+  }
+
+  .app-badge.fav { background: rgba(251,191,36,0.15); color: var(--gold); }
+
+  /* TOAST */
+  #toast {
+    position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%) translateY(80px);
+    background: var(--pond-mid); border: 1px solid var(--card-border);
+    color: var(--text); padding: 0.7rem 1.4rem; border-radius: 50px;
+    font-size: 0.88rem; font-weight: 600; z-index: 999;
+    transition: transform 0.3s ease;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+  #toast.success { border-color: var(--lily); color: var(--lily); }
+  #toast.error { border-color: var(--red); color: var(--red); }
+
+  /* LOADING */
+  .spinner {
+    width: 18px; height: 18px; border-radius: 50%;
+    border: 2px solid rgba(74,222,128,0.2);
+    border-top-color: var(--lily);
+    animation: spin 0.6s linear infinite;
+    display: inline-block;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* MODAL */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0; z-index: 200;
+    background: rgba(0,0,0,0.65); backdrop-filter: blur(4px);
+    align-items: center; justify-content: center; padding: 1rem;
+  }
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--pond-mid); border: 1px solid var(--card-border);
+    border-radius: var(--radius); padding: 1.75rem;
+    width: 100%; max-width: 420px;
+  }
+
+  .modal h3 { font-size: 1.1rem; color: var(--lily); margin-bottom: 1rem; }
+  .modal-footer { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1.25rem; }
+
+  /* POINTS SETTINGS */
+  .points-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;
+  }
+
+  .points-card {
+    background: rgba(13,42,30,0.6); border: 1px solid var(--card-border);
+    border-radius: 10px; padding: 1rem;
+  }
+
+  .points-card label { display: flex; align-items: center; gap: 0.5rem; font-size: 0.88rem; cursor: pointer; }
+
+  .toggle {
+    width: 36px; height: 20px; background: rgba(74,222,128,0.2);
+    border-radius: 50px; position: relative; cursor: pointer;
+    transition: background 0.2s; flex-shrink: 0;
+  }
+  .toggle.on { background: var(--lily); }
+  .toggle::after {
+    content: ''; position: absolute; top: 2px; left: 2px;
+    width: 16px; height: 16px; border-radius: 50%; background: white;
+    transition: left 0.2s;
+  }
+  .toggle.on::after { left: 18px; }
+
+  /* RESPONSIVE */
+  @media (max-width: 600px) {
+    .points-grid { grid-template-columns: 1fr; }
+    .app-grid { grid-template-columns: 1fr; }
+    .add-student-form { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- LOGIN SCREEN -->
+  <div id="login-screen">
+    <div class="pond-logo">🐸</div>
+    <div class="pond-title">The Pond</div>
+    <div class="pond-sub">BullFrogBuddy Beta Platform</div>
+    <button class="btn-google" id="btn-login">
+      <svg viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/><path fill="none" d="M0 0h48v48H0z"/></svg>
+      Sign in with Google
+    </button>
+  </div>
+
+  <!-- MAIN SHELL -->
+  <div id="main-shell">
+    <!-- HEADER -->
+    <header>
+      <div class="header-brand">
+        <span>🐸</span>
+        <div>
+          <strong>The Pond</strong><br>
+          <em>Beta Platform</em>
+        </div>
+      </div>
+      <div class="header-user">
+        <div class="avatar-placeholder" id="user-avatar-text">?</div>
+        <span id="user-name-display" style="font-size:0.85rem;color:var(--text-dim)"></span>
+        <button class="btn-signout" id="btn-signout">Sign out</button>
+      </div>
+    </header>
+
+    <!-- NAV -->
+    <nav>
+      <button class="tab active" data-panel="roster">🗂 Roster</button>
+      <button class="tab" data-panel="apps">🚀 Apps</button>
+      <button class="tab" data-panel="points">⭐ Points</button>
+    </nav>
+
+    <!-- CONTENT -->
+    <div id="content">
+
+      <!-- ROSTER PANEL -->
+      <div class="panel active" id="panel-roster">
+        <div class="section-heading">🗂 Roster Builder</div>
+
+        <!-- CLASS BAR -->
+        <div class="class-bar" id="class-bar">
+          <div class="spinner" id="class-loading"></div>
+        </div>
+
+        <!-- ADD CLASS -->
+        <div class="add-class-row">
+          <input type="text" id="new-class-name" placeholder="New class name…" style="flex:1;min-width:160px" />
+          <input type="text" id="new-class-period" placeholder="Period (optional)" style="width:130px" />
+          <button class="btn btn-primary" id="btn-add-class">+ Add Class</button>
+        </div>
+
+        <!-- STUDENT LIST CARD -->
+        <div class="card" id="student-card">
+          <div class="empty" id="no-class-selected">
+            <div class="empty-icon">👆</div>
+            Select or create a class above to manage students.
+          </div>
+          <div id="student-list-area" style="display:none">
+            <div class="student-list" id="student-list"></div>
+            <!-- ADD STUDENT FORM -->
+            <div class="add-student-form">
+              <input type="text" id="new-first-name" placeholder="First name" style="flex:1;min-width:120px" />
+              <input type="text" id="new-last-initial" placeholder="Last initial" style="width:90px" />
+              <input type="text" id="new-emoji" placeholder="Emoji 🐸" style="width:80px" />
+              <button class="btn btn-primary" id="btn-add-student">+ Add Student</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- APPS PANEL -->
+      <div class="panel" id="panel-apps">
+        <div class="section-heading">🚀 App Launcher</div>
+        <p style="color:var(--text-dim);font-size:0.85rem;margin-bottom:1.25rem">
+          Opens in a new tab. Your roster loads automatically after you sign in.
+        </p>
+        <div class="app-grid">
+
+          <a class="app-card" href="Ribbit_Rabbit_beta.html" target="_blank" rel="noopener">
+            <div class="app-icon">🐸</div>
+            <div class="app-name">Ribbit Rabbit</div>
+            <div class="app-desc">Attendance tracker with soundboard, timer, and class management.</div>
+            <div class="app-badge fav">⭐ Favorite</div>
+          </a>
+
+          <a class="app-card" href="Leader_Locator_beta.html" target="_blank" rel="noopener">
+            <div class="app-icon">⚡</div>
+            <div class="app-name">Leader Locator</div>
+            <div class="app-desc">XP tracker for identifying student leaders and building balanced groups.</div>
+            <div class="app-badge fav">⭐ Favorite</div>
+          </a>
+
+          <div class="app-card" style="opacity:0.5;cursor:default;pointer-events:none">
+            <div class="app-icon">➕</div>
+            <div class="app-name" style="color:var(--text-dim)">More coming soon</div>
+            <div class="app-desc">New tools will appear here as they launch in Beta.</div>
+            <div class="app-badge">Soon</div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- POINTS PANEL -->
+      <div class="panel" id="panel-points">
+        <div class="section-heading">⭐ Points Settings</div>
+        <p style="color:var(--text-dim);font-size:0.85rem;margin-bottom:1.25rem">
+          Control how each app tracks and contributes to student points.
+        </p>
+        <div class="points-grid">
+          <div class="points-card">
+            <div style="font-weight:700;color:var(--lily);margin-bottom:0.75rem">🐸 Ribbit Rabbit</div>
+            <label>
+              <div class="toggle on" id="toggle-rr-separate" data-key="rr_separate"></div>
+              Keep points separate
+            </label>
+            <div style="height:0.5rem"></div>
+            <label>
+              <div class="toggle" id="toggle-rr-total" data-key="rr_total"></div>
+              Add to student total
+            </label>
+            <div style="margin-top:0.75rem;font-size:0.78rem;color:var(--text-dim)">
+              Ribbit Rabbit attendance points
+            </div>
+          </div>
+          <div class="points-card">
+            <div style="font-weight:700;color:var(--lily);margin-bottom:0.75rem">⚡ Leader Locator</div>
+            <label>
+              <div class="toggle on" id="toggle-ll-separate" data-key="ll_separate"></div>
+              Keep points separate
+            </label>
+            <div style="height:0.5rem"></div>
+            <label>
+              <div class="toggle" id="toggle-ll-total" data-key="ll_total"></div>
+              Add to student total
+            </label>
+            <div style="margin-top:0.75rem;font-size:0.78rem;color:var(--text-dim)">
+              Leadership XP points
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:1rem">
+          <button class="btn btn-primary" id="btn-save-points">Save Settings</button>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main-shell -->
+
+</div><!-- /app -->
+
+<!-- DELETE STUDENT MODAL -->
+<div class="modal-overlay" id="modal-delete">
+  <div class="modal">
+    <h3>Remove student?</h3>
+    <p style="font-size:0.88rem;color:var(--text-dim)">
+      This will archive <strong id="delete-student-name"></strong> from this class.
+      Points and history are preserved.
+    </p>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-delete-cancel">Cancel</button>
+      <button class="btn btn-danger" id="btn-delete-confirm">Remove</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+// CONFIG
+const SUPABASE_URL = 'https://qeigivfzyjitxgsrngkr.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFlaWdpdmZ6eWppdHhnc3JuZ2tyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY4ODQ0NzgsImV4cCI6MjEwMjQ2MDQ3OH0.SvCyvflgwm3rRGt53jhEuXCEQSwQLsrZjBRA3Y4ZEfw';
+const GOOGLE_CLIENT_ID = '893792288234-g55rne01l930c06kac13qk85ot5oabud.apps.googleusercontent.com';
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+// STATE
+let currentUser = null;
+let cryptoKey = null;
+let classes = [];
+let students = [];
+let activeClassId = null;
+let deleteTargetId = null;
+let pointsSettings = { rr_separate: true, rr_total: false, ll_separate: true, ll_total: false };
+
+// ─── CRYPTO ──────────────────────────────────────────────────────────────────
+
+async function encryptName(name, key) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const data = new TextEncoder().encode(name);
+  const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, data);
+  return {
+    iv: btoa(String.fromCharCode(...iv)),
+    data: btoa(String.fromCharCode(...new Uint8Array(ciphertext)))
+  };
+}
+
+async function decryptName(encrypted, key) {
+  try {
+    const iv = Uint8Array.from(atob(encrypted.iv), c => c.charCodeAt(0));
+    const data = Uint8Array.from(atob(encrypted.data), c => c.charCodeAt(0));
+    const plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data);
+    return new TextDecoder().decode(plaintext);
+  } catch { return '[encrypted]'; }
+}
+
+async function generateCryptoKey() {
+  return await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt']);
+}
+
+async function exportKey(key) {
+  const raw = await crypto.subtle.exportKey('raw', key);
+  return btoa(String.fromCharCode(...new Uint8Array(raw)));
+}
+
+async function importKey(b64) {
+  const raw = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+  return await crypto.subtle.importKey('raw', raw, { name: 'AES-GCM' }, true, ['encrypt', 'decrypt']);
+}
+
+// ─── KEY MANAGEMENT ──────────────────────────────────────────────────────────
+
+async function loadOrCreateCryptoKey(userId) {
+  // Fetch from beta_profiles
+  const { data } = await sb.from('beta_profiles').select('crypto_key').eq('id', userId).single();
+
+  if (data && data.crypto_key) {
+    return await importKey(data.crypto_key);
+  }
+
+  // Generate new key
+  const key = await generateCryptoKey();
+  const exported = await exportKey(key);
+
+  await sb.from('beta_profiles').upsert({
+    id: userId,
+    email: currentUser.email,
+    full_name: currentUser.user_metadata?.full_name || '',
+    avatar_url: currentUser.user_metadata?.avatar_url || '',
+    crypto_key: exported,
+    role: 'teacher'
+  });
+
+  return key;
+}
+
+// ─── AUTH ─────────────────────────────────────────────────────────────────────
+
+async function signIn() {
+  await sb.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: window.location.href }
+  });
+}
+
+async function signOut() {
+  await sb.auth.signOut();
+  location.reload();
+}
+
+async function initAuth() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) {
+    await onSignedIn(session.user);
+  }
+
+  sb.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'SIGNED_IN' && session) {
+      await onSignedIn(session.user);
+    } else if (event === 'SIGNED_OUT') {
+      location.reload();
+    }
+  });
+}
+
+async function onSignedIn(user) {
+  currentUser = user;
+
+  // Update header
+  const name = user.user_metadata?.full_name || user.email || 'Teacher';
+  document.getElementById('user-name-display').textContent = name.split(' ')[0];
+  document.getElementById('user-avatar-text').textContent = name[0].toUpperCase();
+
+  // Load crypto key
+  cryptoKey = await loadOrCreateCryptoKey(user.id);
+
+  // Show main shell
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('main-shell').style.display = 'flex';
+  document.getElementById('main-shell').style.flexDirection = 'column';
+
+  // Load data
+  await loadClasses();
+  loadPointsSettings();
+}
+
+// ─── CLASSES ──────────────────────────────────────────────────────────────────
+
+async function loadClasses() {
+  document.getElementById('class-loading').style.display = 'inline-block';
+
+  const { data, error } = await sb.from('beta_classes')
+    .select('*')
+    .eq('user_id', currentUser.id)
+    .eq('archived', false)
+    .order('created_at');
+
+  document.getElementById('class-loading').style.display = 'none';
+  classes = data || [];
+  renderClassBar();
+}
+
+function renderClassBar() {
+  const bar = document.getElementById('class-bar');
+  bar.innerHTML = '';
+
+  classes.forEach(cls => {
+    const pill = document.createElement('button');
+    pill.className = 'class-pill' + (cls.id === activeClassId ? ' active' : '');
+    pill.textContent = cls.name + (cls.period ? ` (${cls.period})` : '');
+    pill.onclick = () => selectClass(cls.id);
+    bar.appendChild(pill);
+  });
+}
+
+async function addClass() {
+  const name = document.getElementById('new-class-name').value.trim();
+  if (!name) return;
+  const period = document.getElementById('new-class-period').value.trim();
+
+  const { data, error } = await sb.from('beta_classes').insert({
+    user_id: currentUser.id, name, period: period || null
+  }).select().single();
+
+  if (error) { toast('Could not add class', 'error'); return; }
+
+  document.getElementById('new-class-name').value = '';
+  document.getElementById('new-class-period').value = '';
+  classes.push(data);
+  renderClassBar();
+  selectClass(data.id);
+  toast('Class added', 'success');
+}
+
+async function selectClass(classId) {
+  activeClassId = classId;
+  renderClassBar();
+  document.getElementById('no-class-selected').style.display = 'none';
+  document.getElementById('student-list-area').style.display = 'block';
+  await loadStudents();
+}
+
+// ─── STUDENTS ─────────────────────────────────────────────────────────────────
+
+async function loadStudents() {
+  document.getElementById('student-list').innerHTML = '<div style="padding:1rem"><span class="spinner"></span></div>';
+
+  const { data, error } = await sb.from('beta_students')
+    .select('*')
+    .eq('class_id', activeClassId)
+    .eq('archived', false)
+    .order('sort_key');
+
+  if (error) { toast('Could not load students', 'error'); return; }
+
+  // Decrypt names
+  const decrypted = await Promise.all((data || []).map(async s => {
+    let displayName = s.first_name; // fallback if not encrypted
+    if (s.name_encrypted) {
+      try { displayName = await decryptName(s.name_encrypted, cryptoKey); }
+      catch {}
+    }
+    return { ...s, _displayName: displayName };
+  }));
+
+  students = decrypted;
+  renderStudentList();
+}
+
+function renderStudentList() {
+  const list = document.getElementById('student-list');
+
+  if (!students.length) {
+    list.innerHTML = '<div class="empty"><div class="empty-icon">🌿</div>No students yet. Add one below.</div>';
+    return;
+  }
+
+  list.innerHTML = '';
+  students.forEach(s => {
+    const row = document.createElement('div');
+    row.className = 'student-row';
+    row.innerHTML = `
+      <div class="student-avatar">${s.avatar_emoji || '🐸'}</div>
+      <div style="flex:1">
+        <div class="student-name">${s._displayName}${s.last_initial ? ' ' + s.last_initial + '.' : ''}</div>
+        <div class="student-meta">ID: ${s.id.slice(0,8)}…</div>
+      </div>
+      <div class="student-actions">
+        <button class="btn btn-ghost btn-sm" onclick="startDelete('${s.id}','${escHtml(s._displayName)}')">Remove</button>
+      </div>
+    `;
+    list.appendChild(row);
+  });
+}
+
+function escHtml(str) {
+  return str.replace(/['"<>&]/g, c => ({'\'':'&#39;','"':'&quot;','<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+}
+
+async function addStudent() {
+  const firstName = document.getElementById('new-first-name').value.trim();
+  if (!firstName) { toast('First name required', 'error'); return; }
+  const lastInitial = document.getElementById('new-last-initial').value.trim().slice(0,1).toUpperCase();
+  const emoji = document.getElementById('new-emoji').value.trim() || '🐸';
+
+  // Encrypt name
+  const nameEncrypted = await encryptName(firstName + (lastInitial ? ' ' + lastInitial : ''), cryptoKey);
+  const sortKey = firstName.toLowerCase(); // plaintext sort, not the real name display
+
+  const { data, error } = await sb.from('beta_students').insert({
+    class_id: activeClassId,
+    first_name: '—',           // placeholder, real name is in name_encrypted
+    last_initial: lastInitial || null,
+    name_encrypted: nameEncrypted,
+    sort_key: sortKey,
+    avatar_emoji: emoji
+  }).select().single();
+
+  if (error) { toast('Could not add student', 'error'); return; }
+
+  document.getElementById('new-first-name').value = '';
+  document.getElementById('new-last-initial').value = '';
+  document.getElementById('new-emoji').value = '';
+
+  students.push({ ...data, _displayName: firstName });
+  students.sort((a,b) => (a.sort_key||'').localeCompare(b.sort_key||''));
+  renderStudentList();
+  toast('Student added', 'success');
+}
+
+// ─── DELETE STUDENT ───────────────────────────────────────────────────────────
+
+function startDelete(id, name) {
+  deleteTargetId = id;
+  document.getElementById('delete-student-name').textContent = name;
+  document.getElementById('modal-delete').classList.add('open');
+}
+
+async function confirmDelete() {
+  if (!deleteTargetId) return;
+  const { error } = await sb.from('beta_students')
+    .update({ archived: true })
+    .eq('id', deleteTargetId);
+
+  document.getElementById('modal-delete').classList.remove('open');
+
+  if (error) { toast('Could not remove student', 'error'); return; }
+
+  students = students.filter(s => s.id !== deleteTargetId);
+  deleteTargetId = null;
+  renderStudentList();
+  toast('Student removed', 'success');
+}
+
+// ─── POINTS SETTINGS ─────────────────────────────────────────────────────────
+
+function loadPointsSettings() {
+  const saved = localStorage.getItem('bfb_points_settings');
+  if (saved) { try { pointsSettings = JSON.parse(saved); } catch {} }
+  syncToggles();
+}
+
+function syncToggles() {
+  Object.entries(pointsSettings).forEach(([key, val]) => {
+    const el = document.querySelector(`[data-key="${key}"]`);
+    if (el) el.classList.toggle('on', !!val);
+  });
+}
+
+function savePointsSettings() {
+  localStorage.setItem('bfb_points_settings', JSON.stringify(pointsSettings));
+  toast('Points settings saved', 'success');
+}
+
+// ─── TABS ─────────────────────────────────────────────────────────────────────
+
+function initTabs() {
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('panel-' + tab.dataset.panel).classList.add('active');
+    });
+  });
+}
+
+// ─── TOAST ───────────────────────────────────────────────────────────────────
+
+let toastTimer;
+function toast(msg, type = '') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.className = '', 2800);
+}
+
+// ─── TOGGLES ─────────────────────────────────────────────────────────────────
+
+function initToggles() {
+  document.querySelectorAll('.toggle').forEach(toggle => {
+    toggle.addEventListener('click', () => {
+      const key = toggle.dataset.key;
+      pointsSettings[key] = !toggle.classList.contains('on');
+      toggle.classList.toggle('on');
+    });
+  });
+}
+
+// ─── WIRE UP ─────────────────────────────────────────────────────────────────
+
+document.getElementById('btn-login').addEventListener('click', signIn);
+document.getElementById('btn-signout').addEventListener('click', signOut);
+document.getElementById('btn-add-class').addEventListener('click', addClass);
+document.getElementById('btn-add-student').addEventListener('click', addStudent);
+document.getElementById('btn-save-points').addEventListener('click', savePointsSettings);
+document.getElementById('btn-delete-cancel').addEventListener('click', () => {
+  document.getElementById('modal-delete').classList.remove('open');
+});
+document.getElementById('btn-delete-confirm').addEventListener('click', confirmDelete);
+
+// Enter key on inputs
+document.getElementById('new-class-period').addEventListener('keydown', e => { if (e.key === 'Enter') addClass(); });
+document.getElementById('new-class-name').addEventListener('keydown', e => { if (e.key === 'Enter') addClass(); });
+document.getElementById('new-emoji').addEventListener('keydown', e => { if (e.key === 'Enter') addStudent(); });
+
+initTabs();
+initToggles();
+initAuth();
+</script>
+</body>
+</html>
