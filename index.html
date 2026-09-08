@@ -637,7 +637,7 @@ async function loadOrCreateCryptoKey(userId) {
 async function signIn() {
   await sb.auth.signInWithOAuth({
     provider: 'google',
-    options: { redirectTo: window.location.href }
+    options: { redirectTo: 'https://mcdanieljordan.github.io/the-pond' }
   });
 }
 
