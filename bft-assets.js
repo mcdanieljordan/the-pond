@@ -215,10 +215,15 @@
   };
 
 
-  /* BOOT */
+    /* BOOT */
   if (d.readyState === 'loading') {
     d.addEventListener('DOMContentLoaded', inject);
   } else {
     inject();
   }
+
+  /* RE-INJECT WATCH */
+  setInterval(function () {
+    if (d.body && !d.getElementById('bft-sprite')) { inject(); }
+  }, 500);
 })(window, document);
