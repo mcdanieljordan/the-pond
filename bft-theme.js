@@ -1,10 +1,8 @@
 /* ===========================================================
    BFT-THEME.JS — BullFrogBuddy shared theme engine v1
    Scopes: account → app → class.  Offline cache: localStorage "bft_theme".
-   NOTE: THEME_PRESETS was not found in Leader_Locator_beta.html;
-         28 presets were created here (18 light + 10 dark).
-         THEME_COLORS, softTint, and bestTextOn are exact copies
-         from Leader_Locator_beta.html.
+   THEME_PRESETS, THEME_COLORS, softTint, bestTextOn — exact copies
+   from Leader_Locator_beta.html.
    =========================================================== */
 (function (w) {
   'use strict';
@@ -20,56 +18,29 @@
     { name: 'Slate',   hex: '#8A9689' }
   ];
 
-  // THEME_PRESETS — created here (not in Leader_Locator_beta.html)
+  // THEME_PRESETS — exact from Leader_Locator_beta.html
   const THEME_PRESETS = [
-    // LIGHT (18)
-    { id: 'frog-pond',    name: 'Frog Pond',    header: '#2E8B5E', accent: '#5FA02A', mode: 'light' },
-    { id: 'deep-forest',  name: 'Deep Forest',  header: '#2E8B5E', accent: '#12977F', mode: 'light' },
-    { id: 'meadow',       name: 'Meadow',       header: '#5FA02A', accent: '#A8B520', mode: 'light' },
-    { id: 'tropical',     name: 'Tropical',     header: '#12977F', accent: '#5FA02A', mode: 'light' },
-    { id: 'ocean',        name: 'Ocean',        header: '#12977F', accent: '#1B8FA8', mode: 'light' },
-    { id: 'sky-high',     name: 'Sky High',     header: '#1B8FA8', accent: '#2C6BAF', mode: 'light' },
-    { id: 'deep-blue',    name: 'Deep Blue',    header: '#2C6BAF', accent: '#5B6FD8', mode: 'light' },
-    { id: 'navy',         name: 'Navy',         header: '#5B6FD8', accent: '#2C6BAF', mode: 'light' },
-    { id: 'sunset',       name: 'Sunset',       header: '#E8951F', accent: '#E2622C', mode: 'light' },
-    { id: 'autumn',       name: 'Autumn',       header: '#F7C24B', accent: '#D8B215', mode: 'light' },
-    { id: 'fire',         name: 'Fire',         header: '#C9402F', accent: '#E8951F', mode: 'light' },
-    { id: 'desert-gold',  name: 'Desert Gold',  header: '#D8B215', accent: '#F7C24B', mode: 'light' },
-    { id: 'olive-branch', name: 'Olive Branch', header: '#A8B520', accent: '#2E8B5E', mode: 'light' },
-    { id: 'coral-reef',   name: 'Coral Reef',   header: '#E2622C', accent: '#E8951F', mode: 'light' },
-    { id: 'violet-sky',   name: 'Violet Sky',   header: '#9B6FD8', accent: '#5B6FD8', mode: 'light' },
-    { id: 'magenta-wave', name: 'Magenta Wave', header: '#C15FC0', accent: '#9B6FD8', mode: 'light' },
-    { id: 'rose-garden',  name: 'Rose Garden',  header: '#D85FA0', accent: '#C15FC0', mode: 'light' },
-    { id: 'slate-rock',   name: 'Slate Rock',   header: '#8A9689', accent: '#2C6BAF', mode: 'light' },
-    // DARK (10)
-    { id: 'night-forest', name: 'Night Forest', header: '#2E8B5E', accent: '#5FA02A', mode: 'dark' },
-    { id: 'deep-ocean',   name: 'Deep Ocean',   header: '#2C6BAF', accent: '#12977F', mode: 'dark' },
-    { id: 'midnight',     name: 'Midnight',     header: '#5B6FD8', accent: '#9B6FD8', mode: 'dark' },
-    { id: 'ember',        name: 'Ember',        header: '#C9402F', accent: '#E8951F', mode: 'dark' },
-    { id: 'dark-meadow',  name: 'Dark Meadow',  header: '#5FA02A', accent: '#A8B520', mode: 'dark' },
-    { id: 'night-sky',    name: 'Night Sky',    header: '#1B8FA8', accent: '#2C6BAF', mode: 'dark' },
-    { id: 'dark-violet',  name: 'Dark Violet',  header: '#9B6FD8', accent: '#C15FC0', mode: 'dark' },
-    { id: 'dark-slate',   name: 'Dark Slate',   header: '#8A9689', accent: '#12977F', mode: 'dark' },
-    { id: 'dark-gold',    name: 'Dark Gold',    header: '#D8B215', accent: '#F7C24B', mode: 'dark' },
-    { id: 'dark-coral',   name: 'Dark Coral',   header: '#E2622C', accent: '#D85FA0', mode: 'dark' }
-  ];
+    ['frog','Frog Pond','#0E4A2F','#A8D84C','#F7F4EC'],['ocean','Ocean Deep','#0B3A5B','#4FC3F7','#EAF2F7'],['sunset','Sunset Blaze','#9A2F12','#FFB347','#FBF0E7'],
+    ['galaxy','Galaxy','#2A1B5C','#C39BFF','#F0EDF8'],['blossom','Cherry Blossom','#9C2F5A','#FFB3CF','#FBEFF4'],['volcano','Volcano','#3A1410','#FF6B3D','#F6EDE9'],
+    ['arctic','Arctic','#1F4E6B','#9FE6FF','#EEF5F8'],['jungle','Jungle','#1D3B14','#7FD34E','#EEF4E9'],['desert','Desert Dune','#7A4A1C','#F2C57C','#F8F2E7'],
+    ['royal','Royal Court','#2B2F7A','#F5C542','#EFF0F8'],['candy','Candy Shop','#B0306B','#7FE0D2','#FCEFF5'],['midnight','Midnight','#12161F','#5CE1E6','#EDEFF2'],
+    ['lava','Lava Lamp','#6B1E6E','#FF8A5B','#F6EEF5'],['mint','Mint Chip','#1E5E4E','#BDF2DC','#EDF6F2'],['pumpkin','Pumpkin Patch','#8A3B06','#FFA23A','#FAF1E7'],
+    ['storm','Thunderstorm','#33404D','#FFD84D','#EFF1F3'],['berry','Wild Berry','#5B1340','#E86FB0','#F6EDF2'],['citrus','Citrus Grove','#4F6B00','#F2E14C','#F4F6E7'],
+    ['reef','Coral Reef','#A33A3A','#5FD3C6','#FAEFED'],['space','Space Cadet','#0F2340','#FF5E8A','#EDF0F4'],['camp','Forest Camp','#3B2A1A','#9CCB6B','#F4F0EA'],
+    ['arcade','Retro Arcade','#1A1033','#39FF88','#EEECF4'],['bubble','Bubblegum','#C2457F','#FFE066','#FDF1F6'],['slate','Slate Pro','#2F3A35','#8FD9B6','#F0F2F1'],
+    ['gold','Gold Rush','#4A3A0B','#F7C948','#F7F4E7'],['neon','Neon Night','#0D0D1A','#FF3DF0','#EEEEF3'],['ranger','Red Ranger','#8E1B1B','#FFD23F','#F9EEEE'],
+    ['sky','Blue Ranger','#1B4F9E','#9AD1FF','#EDF2FA']
+  ].map(a => ({ id: a[0], name: a[1], header: a[2], accent: a[3], bg: a[4] }));
 
   // softTint — exact from Leader_Locator_beta.html
-  function softTint(hex) {
-    const r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
-    const mix = c => Math.round(c * 0.14 + 255 * 0.86);
-    return 'rgb(' + mix(r) + ',' + mix(g) + ',' + mix(b) + ')';
-  }
+  function softTint(hex){const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);const mix=c=>Math.round(c*0.14+255*0.86);return 'rgb('+mix(r)+','+mix(g)+','+mix(b)+')';}
 
   // bestTextOn — exact from Leader_Locator_beta.html
-  function bestTextOn(hex) {
-    const r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
-    return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.6 ? '#17251C' : '#FFFFFF';
-  }
+  function bestTextOn(hex){const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return (0.299*r+0.587*g+0.114*b)/255>0.6?'#17251C':'#FFFFFF';}
 
-  // DEFAULTS
+  // DEFAULTS — matches first preset
   const DEFAULT = {
-    preset: 'frog-pond', header: '#2E8B5E', accent: '#5FA02A',
+    preset: 'frog', header: '#0E4A2F', accent: '#A8D84C', bg: '#F7F4EC',
     name: 'Frog Pond', mode: 'light', textSize: 'M', contrast: false
   };
 
@@ -116,7 +87,7 @@
     root.style.setProperty('--bft-accent',  a);
     root.style.setProperty('--bft-fg',      bestTextOn(h));
     root.style.setProperty('--bft-tint',    isHC ? 'transparent' : softTint(a));
-    root.style.setProperty('--bft-bg',      isDark ? '#111827' : '#F8FAFC');
+    root.style.setProperty('--bft-bg',      isDark ? '#111827' : (t.bg || '#F8FAFC'));
     root.style.setProperty('--bft-surface', isDark ? '#1F2937' : '#FFFFFF');
     root.style.setProperty('--bft-text',    isDark ? '#F1F5F9' : '#1E293B');
     root.style.setProperty('--bft-scale',   t.textSize === 'S' ? '0.9' : t.textSize === 'L' ? '1.2' : '1');
@@ -272,7 +243,6 @@
         class="bft-preset-swatch${t.preset===p.id?' active':''}"
         data-p="${p.id}"
         style="background:${p.header}"
-        ${p.mode==='dark'?'data-dark=""':''}
         title="${p.name}"></button>`).join('')}
     </div>
   </div>
@@ -348,7 +318,7 @@
     picker.querySelectorAll('.bft-preset-swatch').forEach(btn =>
       btn.addEventListener('click', () => {
         const p = THEME_PRESETS.find(x => x.id === btn.dataset.p);
-        if (p) _save(scope, { preset: p.id, header: p.header, accent: p.accent, mode: p.mode, name: p.name });
+        if (p) _save(scope, { preset: p.id, header: p.header, accent: p.accent, bg: p.bg, name: p.name });
       })
     );
 
