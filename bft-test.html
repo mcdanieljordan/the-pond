@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BFT Shared Library Test</title>
+
+  <!-- SUPABASE -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+
+  <!-- SHARED FILES -->
+  <script src="bft-config.js"></script>
+  <script src="bft-assets.js"></script>
+  <script src="bft-theme.js"></script>
+  <script src="bft-students.js"></script>
+
+  <style>
+    /* ROOT TOKENS */
+    :root {
+      --bft-header: #2E8B5E; --bft-accent: #5FA02A;
+      --bft-bg: #F8FAFC;     --bft-surface: #fff;
+      --bft-text: #1E293B;   --bft-fg: #fff;
+      --bft-tint: #edf7e6;   --bft-scale: 1;
+    }
+
+    /* BASE */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: var(--bft-bg);
+           color: var(--bft-text); font-size: calc(15px * var(--bft-scale)); }
+    [data-mode=dark] body { background: #111827; color: #F1F5F9; }
+
+    /* LOGIN SCREEN */
+    #login-screen {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; min-height: 100vh; gap: 1.5rem; text-align: center; padding: 2rem;
+    }
+    #login-screen h1 { font-size: 2rem; color: var(--bft-header); }
+    #login-screen p  { color: #64748b; }
+
+    /* PASSPHRASE MODAL */
+    #pass-modal {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5);
+      align-items: center; justify-content: center; z-index: 100;
+    }
+    #pass-modal.active { display: flex; }
+    #pass-box {
+      background: var(--bft-surface); border-radius: 14px; padding: 28px;
+      width: 360px; max-width: 90vw; display: flex; flex-direction: column; gap: 14px;
+    }
+    #pass-box h2 { font-size: 1.2rem; }
+    #pass-box input[type=password] {
+      width: 100%; padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 9px;
+      font-size: 15px; outline: none;
+    }
+    #pass-box input:focus { border-color: var(--bft-header); }
+    #pass-error { color: #dc2626; font-size: 13px; min-height: 18px; }
+
+    /* MAIN LAYOUT */
+    #app { display: none; }
+    #app.active { display: block; }
+
+    /* HEADER */
+    #app-header {
+      background: var(--bft-header); color: var(--bft-fg);
+      padding: 14px 20px; display: flex; align-items: center; gap: 12px;
+      font-size: calc(17px * var(--bft-scale)); font-weight: 700;
+    }
+    #app-header button {
+      margin-left: auto; background: rgba(255,255,255,.2); border: none; border-radius: 8px;
+      color: inherit; padding: 7px 14px; cursor: pointer; font-size: 13px;
+    }
+
+    /* TWO-COLUMN LAYOUT */
+    #main { display: flex; gap: 20px; padding: 20px; flex-wrap: wrap; align-items: flex-start; }
+    #left  { flex: 1; min-width: 280px; }
+    #right { width: 380px; flex-shrink: 0; }
+
+    /* CARDS */
+    .card {
+      background: var(--bft-surface); border-radius: 12px; padding: 18px;
+      box-shadow: 0 1px 8px rgba(0,0,0,.07); margin-bottom: 16px;
+    }
+    .card h3 { font-size: 14px; font-weight: 700; text-transform: uppercase;
+               letter-spacing: .06em; color: #64748b; margin-bottom: 12px; }
+
+    /* CLASS LIST */
+    .class-btn {
+      width: 100%; text-align: left; padding: 11px 14px; border: 1.5px solid #e2e8f0;
+      border-radius: 9px; background: var(--bft-tint); cursor: pointer; font-size: 15px;
+      margin-bottom: 6px; font-weight: 500; transition: .15s;
+    }
+    .class-btn.active { border-color: var(--bft-header); background: var(--bft-header);
+                        color: var(--bft-fg); }
+    .class-btn:hover:not(.active) { border-color: var(--bft-header); }
+
+    /* STUDENT GRID */
+    #student-grid { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 4px; }
+    .student-card {
+      background: var(--bft-surface); border: 1.5px solid #e2e8f0;
+      border-radius: 12px; padding: 12px; text-align: center; width: 120px;
+      cursor: pointer; transition: .15s; position: relative;
+    }
+    .student-card:hover  { border-color: var(--bft-accent); }
+    .student-card.selected { border-color: var(--bft-header); background: var(--bft-tint); }
+    .student-photo {
+      width: 64px; height: 64px; border-radius: 50%; object-fit: cover;
+      background: var(--bft-tint); margin: 0 auto 8px; display: block;
+      font-size: 28px; line-height: 64px; text-align: center; overflow: hidden;
+    }
+    .student-photo img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+    .student-name { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+    .student-xp   { font-size: 12px; color: #64748b; }
+    .student-upload { position: absolute; bottom: 6px; right: 6px; font-size: 11px;
+                      background: var(--bft-surface); border: 1.5px solid #e2e8f0;
+                      border-radius: 6px; padding: 2px 6px; cursor: pointer; }
+
+    /* ACTIONS */
+    .action-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+    .btn { min-height: 44px; padding: 0 18px; border-radius: 9px; border: none; cursor: pointer;
+           font-size: 15px; font-weight: 600; transition: .15s; }
+    .btn-primary  { background: var(--bft-header); color: var(--bft-fg); }
+    .btn-secondary{ background: var(--bft-tint);   color: var(--bft-header);
+                    border: 1.5px solid var(--bft-header); }
+    .btn-danger   { background: #fee2e2; color: #dc2626; border: 1.5px solid #fca5a5; }
+    .btn:hover { opacity: .88; }
+    .btn:disabled { opacity: .4; cursor: default; }
+
+    /* XP LOG */
+    #xp-log { font-size: 13px; }
+    .log-row { padding: 8px 0; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; }
+    .log-row:last-child { border: none; }
+    .log-delta { font-weight: 700; color: var(--bft-header); }
+    .log-delta.neg { color: #dc2626; }
+
+    /* TOAST */
+    #toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      background: #1E293B; color: #fff; padding: 10px 20px; border-radius: 9px;
+      font-size: 14px; opacity: 0; transition: opacity .25s; pointer-events: none; z-index: 200;
+    }
+    #toast.show { opacity: 1; }
+
+    /* FOOTER */
+    #footer { text-align: center; padding: 24px; font-size: 13px; color: #94a3b8; }
+    #footer a { color: var(--bft-accent); text-decoration: none; }
+  </style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div id="login-screen">
+  <div style="font-size:5rem">🐸</div>
+  <h1>BFT Library Test</h1>
+  <p>Sign in to test bft-theme.js and bft-students.js</p>
+  <button class="btn btn-primary" id="signin-btn" onclick="signIn()" style="font-size:16px;padding:12px 28px">
+    Sign in with Google
+  </button>
+  <div id="auth-status" style="font-size:13px;color:#64748b"></div>
+</div>
+
+<!-- PASSPHRASE MODAL -->
+<div id="pass-modal">
+  <div id="pass-box">
+    <h2 id="pass-title">Enter your passphrase</h2>
+    <p id="pass-desc" style="font-size:13px;color:#64748b"></p>
+    <input type="password" id="pass-input" placeholder="Your passphrase" autocomplete="off">
+    <input type="password" id="pass-confirm" placeholder="Confirm passphrase" autocomplete="off" style="display:none">
+    <label id="pass-ack-wrap" style="display:none;font-size:13px;gap:8px;align-items:flex-start">
+      <input type="checkbox" id="pass-ack" style="margin-top:2px;flex-shrink:0">
+      I understand: if I lose this passphrase, student names cannot be recovered by anyone.
+    </label>
+    <div id="pass-error"></div>
+    <button class="btn btn-primary" id="pass-submit" onclick="submitPassphrase()">Unlock</button>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+
+  <!-- HEADER -->
+  <div id="app-header">
+    <span>🐸</span>
+    <span>BFT Library Test</span>
+    <span id="user-label" style="font-size:13px;font-weight:400;opacity:.8"></span>
+    <button onclick="signOut()">Sign out</button>
+  </div>
+
+  <div id="main">
+
+    <!-- LEFT: CLASSES + STUDENTS -->
+    <div id="left">
+
+      <!-- CLASSES -->
+      <div class="card">
+        <h3>My Classes</h3>
+        <div id="class-list">Loading…</div>
+      </div>
+
+      <!-- STUDENTS -->
+      <div class="card" id="students-card" style="display:none">
+        <h3>Students — <span id="class-label"></span></h3>
+
+        <!-- ACTIONS -->
+        <div class="action-row">
+          <button class="btn btn-primary"  id="plus-btn"  onclick="awardSelected(1)"  disabled>+1 XP</button>
+          <button class="btn btn-secondary" id="minus-btn" onclick="awardSelected(-1)" disabled>-1 XP</button>
+          <button class="btn btn-danger"   id="undo-btn"  onclick="undoLast()"        disabled>↩ Undo</button>
+        </div>
+
+        <div id="selected-info" style="font-size:13px;color:#64748b;margin-bottom:10px"></div>
+
+        <!-- STUDENT GRID -->
+        <div id="student-grid"></div>
+      </div>
+
+      <!-- XP LOG -->
+      <div class="card" id="xp-log-card" style="display:none">
+        <h3>Recent XP events — <span id="log-student-label"></span></h3>
+        <div id="xp-log">Click a student to see their history.</div>
+      </div>
+
+    </div><!-- /left -->
+
+    <!-- RIGHT: THEME PICKER -->
+    <div id="right">
+      <div class="card" style="padding:0">
+        <h3 style="padding:18px 18px 0">Theme Picker</h3>
+        <div id="theme-picker-mount" style="padding:8px 0 0"></div>
+      </div>
+    </div><!-- /right -->
+
+  </div><!-- /main -->
+
+  <!-- FOOTER -->
+  <div id="footer">
+    <a href="https://buymeacoffee.com/tools4teachers" target="_blank">🐸 Feed the Frogs and the Pond will Grow</a>
+  </div>
+
+</div><!-- /app -->
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- HIDDEN FILE INPUT FOR PHOTO UPLOAD -->
+<input type="file" id="photo-file" accept="image/*" style="display:none" onchange="handlePhotoUpload(event)">
+
+<script>
+/* ── GLOBALS ────────────────────────────── */
+let sb, currentUser, cryptoKey, cryptoSalt, isNewPass;
+let activeClassId = null, activeClassName = '';
+let selectedStudents = new Set();   // Set of student ids
+let lastBatchId = null;
+let allStudents = [];               // current class student objects
+let xpTotals = {};                  // studentId -> total_xp
+let photoUploadTarget = null;       // studentId for pending upload
+
+/* ── SUPABASE INIT ───────────────────────── */
+function initSB() {
+  if (!window.BFT_CONFIG) { authStatus('bft-config.js not loaded', true); return; }
+  sb = supabase.createClient(BFT_CONFIG.SUPABASE_URL, BFT_CONFIG.SUPABASE_ANON_KEY);
+  BFT_THEME.init('bft-test');
+}
+
+/* ── AUTH ────────────────────────────────── */
+function authStatus(msg, isErr) {
+  const el = document.getElementById('auth-status');
+  el.textContent = msg;
+  el.style.color = isErr ? '#dc2626' : '#64748b';
+}
+
+async function signIn() {
+  const { error } = await sb.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: location.href }
+  });
+  if (error) authStatus(error.message, true);
+}
+
+async function signOut() {
+  await sb.auth.signOut();
+  location.reload();
+}
+
+async function initAuth() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session?.user) return onSignedIn(session.user);
+
+  sb.auth.onAuthStateChange((_ev, sess) => {
+    if (sess?.user) onSignedIn(sess.user);
+  });
+}
+
+async function onSignedIn(user) {
+  currentUser = user;
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').classList.add('active');
+  document.getElementById('user-label').textContent = user.email;
+  await initCryptoKey(user);
+}
+
+/* ── PASSPHRASE FLOW (same scheme as index.html) ─ */
+async function initCryptoKey(user) {
+  const { data, error } = await sb
+    .from('beta_profiles').select('crypto_salt').eq('user_id', user.id).maybeSingle();
+  if (error) throw error;
+
+  if (data?.crypto_salt) {
+    cryptoSalt = BFT_STUDENTS.fromB64(data.crypto_salt);
+    isNewPass  = false;
+  } else {
+    cryptoSalt = crypto.getRandomValues(new Uint8Array(16));
+    isNewPass  = true;
+  }
+  openPassModal();
+}
+
+function openPassModal() {
+  document.getElementById('pass-title').textContent =
+    isNewPass ? 'Create your passphrase' : 'Enter your passphrase';
+  document.getElementById('pass-desc').textContent = isNewPass
+    ? 'This passphrase encrypts student names. It never leaves this device.'
+    : 'Enter your passphrase to unlock student names.';
+  document.getElementById('pass-confirm').style.display = isNewPass ? '' : 'none';
+  document.getElementById('pass-ack-wrap').style.display = isNewPass ? 'flex' : 'none';
+  document.getElementById('pass-submit').textContent = isNewPass ? 'Create & Continue' : 'Unlock';
+  document.getElementById('pass-error').textContent = '';
+  document.getElementById('pass-modal').classList.add('active');
+  document.getElementById('pass-input').focus();
+}
+
+async function submitPassphrase() {
+  const passphrase = document.getElementById('pass-input').value;
+  const errEl = document.getElementById('pass-error');
+  errEl.textContent = '';
+
+  if (isNewPass) {
+    if (passphrase.length < 8)
+      return (errEl.textContent = 'Passphrase must be at least 8 characters.');
+    if (passphrase !== document.getElementById('pass-confirm').value)
+      return (errEl.textContent = 'Passphrases do not match.');
+    if (!document.getElementById('pass-ack').checked)
+      return (errEl.textContent = 'Please check the acknowledgement box.');
+  }
+
+  try {
+    cryptoKey = await BFT_STUDENTS.deriveKeyFromPassphrase(passphrase, cryptoSalt);
+    document.getElementById('pass-input').value = '';
+    document.getElementById('pass-confirm').value = '';
+
+    if (isNewPass) {
+      await sb.from('beta_profiles').upsert({
+        user_id: currentUser.id,
+        email: currentUser.email,
+        crypto_salt: BFT_STUDENTS.toB64(cryptoSalt)
+      }, { onConflict: 'user_id' });
+    } else {
+      // Quick verification: try to decrypt a known class name
+      const { data } = await sb.from('classes')
+        .select('name_encrypted').eq('user_id', currentUser.id)
+        .not('name_encrypted', 'is', null).limit(1);
+      if (data?.length) {
+        const p = data[0].name_encrypted;
+        if (p?.iv && p?.data) {
+          try {
+            await crypto.subtle.decrypt(
+              { name: 'AES-GCM', iv: BFT_STUDENTS.fromB64(p.iv) },
+              cryptoKey, BFT_STUDENTS.fromB64(p.data)
+            );
+          } catch {
+            cryptoKey = null;
+            return (errEl.textContent = 'Incorrect passphrase. Please try again.');
+          }
+        }
+      }
+    }
+
+    document.getElementById('pass-modal').classList.remove('active');
+
+    // Hand everything to BFT_STUDENTS
+    BFT_STUDENTS.init(sb, currentUser, cryptoKey);
+
+    // Sync theme
+    await BFT_THEME.syncFromProfile(sb, currentUser.id);
+
+    // Boot the UI
+    await loadClasses();
+    renderThemePicker();
+    BFT_STUDENTS.onChange(onRealtimeChange);
+
+  } catch (err) {
+    errEl.textContent = 'Error: ' + err.message;
+  }
+}
+
+/* ── REALTIME ────────────────────────────── */
+function onRealtimeChange(table) {
+  if (table === 'xp_events' || table === 'students') {
+    if (activeClassId) loadStudents(activeClassId);
+  }
+}
+
+/* ── CLASSES ─────────────────────────────── */
+async function loadClasses() {
+  const list = document.getElementById('class-list');
+  try {
+    const classes = await BFT_STUDENTS.listClasses();
+    if (!classes.length) { list.innerHTML = '<p style="color:#94a3b8;font-size:14px">No classes yet. Create one in The Pond.</p>'; return; }
+    list.innerHTML = classes.map(c =>
+      `<button class="class-btn" data-id="${c.id}" onclick="selectClass('${c.id}','${c.name.replace(/'/g,"\\'")}')">
+        ${escHtml(c.name)}
+       </button>`
+    ).join('');
+  } catch (e) { list.innerHTML = '<p style="color:#dc2626">' + e.message + '</p>'; }
+}
+
+async function selectClass(classId, className) {
+  activeClassId   = classId;
+  activeClassName = className;
+  selectedStudents.clear();
+  lastBatchId = null;
+  document.querySelectorAll('.class-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.id === classId));
+  BFT_THEME.setClass(classId);
+  await loadStudents(classId);
+}
+
+/* ── STUDENTS ────────────────────────────── */
+async function loadStudents(classId) {
+  const card = document.getElementById('students-card');
+  const grid = document.getElementById('student-grid');
+  card.style.display = '';
+  document.getElementById('class-label').textContent = activeClassName;
+  grid.innerHTML = '<span style="color:#94a3b8;font-size:14px">Loading…</span>';
+
+  try {
+    allStudents = await BFT_STUDENTS.listStudents(classId);
+    const ids   = allStudents.map(s => s.id);
+    const tots  = ids.length ? await BFT_STUDENTS.totals(ids) : [];
+    xpTotals = {};
+    tots.forEach(t => { xpTotals[t.student_id] = t.total_xp; });
+    renderGrid();
+  } catch (e) {
+    grid.innerHTML = '<p style="color:#dc2626">' + e.message + '</p>';
+  }
+}
+
+function renderGrid() {
+  const grid = document.getElementById('student-grid');
+  if (!allStudents.length) {
+    grid.innerHTML = '<p style="color:#94a3b8;font-size:14px">No students in this class.</p>';
+    updateActionButtons();
+    return;
+  }
+  grid.innerHTML = allStudents.map(s => {
+    const sel = selectedStudents.has(s.id);
+    const xp  = xpTotals[s.id] || 0;
+    return `<div class="student-card${sel?' selected':''}" id="sc-${s.id}" onclick="toggleStudent('${s.id}')">
+      <div class="student-photo" id="photo-${s.id}">
+        ${s.photo_path ? '<img id="img-' + s.id + '" src="" alt="">' : '🐸'}
+      </div>
+      <div class="student-name">${escHtml(s.name)}</div>
+      <div class="student-xp">${xp} XP</div>
+      <label class="student-upload" title="Upload photo" onclick="event.stopPropagation();triggerUpload('${s.id}')">📷</label>
+    </div>`;
+  }).join('');
+
+  // Load photos async
+  allStudents.forEach(s => {
+    if (s.photo_path) loadPhoto(s);
+  });
+
+  updateActionButtons();
+}
+
+async function loadPhoto(student) {
+  try {
+    const url = await BFT_STUDENTS.getPhotoURL(student);
+    const img = document.getElementById('img-' + student.id);
+    if (img && url) img.src = url;
+  } catch (_) {}
+}
+
+function toggleStudent(id) {
+  if (selectedStudents.has(id)) selectedStudents.delete(id);
+  else selectedStudents.add(id);
+  const card = document.getElementById('sc-' + id);
+  if (card) card.classList.toggle('selected', selectedStudents.has(id));
+  updateActionButtons();
+}
+
+function updateActionButtons() {
+  const hasSel  = selectedStudents.size > 0;
+  const hasBatch = !!lastBatchId;
+  document.getElementById('plus-btn').disabled  = !hasSel;
+  document.getElementById('minus-btn').disabled = !hasSel;
+  document.getElementById('undo-btn').disabled  = !hasBatch;
+  document.getElementById('selected-info').textContent =
+    hasSel ? `${selectedStudents.size} student${selectedStudents.size>1?'s':''} selected` : '';
+}
+
+/* ── XP ACTIONS ──────────────────────────── */
+async function awardSelected(delta) {
+  if (!selectedStudents.size) return;
+  try {
+    const ids = [...selectedStudents];
+    lastBatchId = await BFT_STUDENTS.award(ids, delta, {
+      appSource: 'bft-test',
+      classId:   activeClassId,
+      reason:    delta > 0 ? '+1 from test page' : '-1 from test page'
+    });
+    toast(`${delta>0?'+':''} ${delta} XP awarded to ${ids.length} student${ids.length>1?'s':''}`);
+    await loadStudents(activeClassId);
+  } catch (e) { toast('Error: ' + e.message, true); }
+}
+
+async function undoLast() {
+  if (!lastBatchId) return;
+  try {
+    await BFT_STUDENTS.undo(lastBatchId);
+    lastBatchId = null;
+    toast('Last batch undone.');
+    await loadStudents(activeClassId);
+  } catch (e) { toast('Error: ' + e.message, true); }
+}
+
+/* ── HISTORY ─────────────────────────────── */
+async function showHistory(studentId, studentName) {
+  document.getElementById('xp-log-card').style.display = '';
+  document.getElementById('log-student-label').textContent = studentName;
+  const el = document.getElementById('xp-log');
+  try {
+    const rows = await BFT_STUDENTS.history(studentId);
+    if (!rows.length) { el.innerHTML = '<p style="color:#94a3b8">No XP events yet.</p>'; return; }
+    el.innerHTML = rows.map(r =>
+      `<div class="log-row">
+        <span>${r.app_source} ${r.reason ? '· ' + escHtml(r.reason) : ''}</span>
+        <span class="log-delta${r.delta<0?' neg':''}">${r.delta>0?'+':''}${r.delta}</span>
+       </div>`
+    ).join('');
+  } catch (e) { el.innerHTML = '<p style="color:#dc2626">' + e.message + '</p>'; }
+}
+
+/* ── PHOTOS ──────────────────────────────── */
+function triggerUpload(studentId) {
+  photoUploadTarget = studentId;
+  document.getElementById('photo-file').click();
+}
+
+async function handlePhotoUpload(event) {
+  const file = event.target.files[0];
+  if (!file || !photoUploadTarget) return;
+  event.target.value = '';
+  const id = photoUploadTarget;
+  photoUploadTarget = null;
+  toast('Uploading photo…');
+  try {
+    await BFT_STUDENTS.uploadPhoto(id, file);
+    toast('Photo saved!');
+    await loadStudents(activeClassId);
+  } catch (e) { toast('Upload error: ' + e.message, true); }
+}
+
+/* ── THEME PICKER ────────────────────────── */
+function renderThemePicker() {
+  BFT_THEME.renderPicker(document.getElementById('theme-picker-mount'));
+}
+
+/* ── UTILS ───────────────────────────────── */
+function escHtml(s) {
+  return String(s).replace(/[&<>"']/g, c =>
+    ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c]);
+}
+
+let toastTimer;
+function toast(msg, isErr) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.background = isErr ? '#dc2626' : '#1E293B';
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+/* ── BOOT ────────────────────────────────── */
+window.addEventListener('DOMContentLoaded', () => {
+  initSB();
+  initAuth();
+});
+
+// Allow Enter key in passphrase modal
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.getElementById('pass-modal').classList.contains('active')) {
+    submitPassphrase();
+  }
+});
+</script>
+</body>
+</html>
