@@ -1,0 +1,1588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0E4A2F">
+<title>GrowGrit — The Pond</title>
+
+<!-- FONTS -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+
+<!-- SUPABASE (optional: app runs fully offline without it) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+
+<!-- SHARED POND FILES -->
+<script src="bft-config.js"></script>
+<script src="bft-assets.js"></script>
+<script src="bft-theme.js"></script>
+<script src="bft-students.js"></script>
+
+<!-- STYLES -->
+<style>
+/* TOKENS (follow The Pond theme when bft-theme.js is loaded) */
+:root{
+  --deep:var(--bft-header,#0E4A2F); --lime:var(--bft-accent,#A8D84C);
+  --bg:var(--bft-bg,#F7F4EC); --card:var(--bft-surface,#FFFFFF); --ink:var(--bft-text,#10231A);
+  --on-deep:var(--bft-fg,#FFFFFF);
+  --muted:#3E5A49; --line:#C9D8C2; --soft:#E9F3DD;
+  --good:#15803D; --bad:#B91C1C; --warn:#A16207;
+  --r:18px; --nav:86px; --fs:calc(20px * var(--bft-scale,1));
+}
+[data-mode=dark]{ --muted:#B8CDBF; --line:#35503F; --soft:#1C3326; }
+[data-contrast=true]{ --line:#10231A; --muted:#10231A; }
+[data-mode=dark][data-contrast=true]{ --line:#F1F5F9; --muted:#F1F5F9; }
+
+/* BASE */
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:'Bricolage Grotesque',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--ink);
+  font-size:var(--fs);line-height:1.35;-webkit-tap-highlight-color:transparent;overflow-x:hidden}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+h1,h2,h3{margin:0 0 .4em;line-height:1.1}
+h1{font-size:2em;font-weight:800} h2{font-size:1.35em;font-weight:800} h3{font-size:1.1em;font-weight:800}
+.muted{color:var(--muted)} .small{font-size:.8em}
+.row{display:flex;gap:12px;align-items:center} .wrap{flex-wrap:wrap} .grow{flex:1}
+.hide{display:none!important}
+.card{background:var(--card);border:2px solid var(--line);border-radius:var(--r);padding:18px;margin:0 0 16px}
+:focus-visible{outline:4px solid #2563EB;outline-offset:2px}
+
+/* BUTTONS */
+.btn{min-height:56px;min-width:56px;padding:0 20px;border-radius:14px;border:3px solid var(--deep);background:var(--card);
+  color:var(--deep);font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:8px;text-decoration:none}
+.btn.go{background:var(--deep);color:var(--on-deep)}
+.btn.lime{background:var(--lime);color:#10231A;border-color:#10231A}
+.btn.warn{border-color:var(--bad);color:var(--bad)}
+.btn.big{min-height:72px;font-size:1.15em;padding:0 26px}
+.btn:active{transform:scale(.97)}
+.btn:disabled{opacity:.4}
+.seg{display:inline-flex;border:3px solid var(--deep);border-radius:14px;overflow:hidden;flex-wrap:wrap}
+.seg button{min-height:56px;min-width:64px;padding:0 16px;border:0;background:var(--card);font-weight:800;color:var(--deep)}
+.seg button+button{border-left:2px solid var(--deep)}
+.seg button.on{background:var(--deep);color:var(--on-deep)}
+input[type=text],input[type=number],input[type=date],select,textarea{min-height:56px;border:2px solid var(--line);border-radius:12px;
+  padding:0 14px;background:var(--card);max-width:100%}
+textarea{padding:12px;min-height:140px;width:100%;font-family:ui-monospace,monospace;font-size:16px}
+.chips{display:flex;flex-wrap:wrap;gap:12px}
+.chip{min-height:72px;padding:10px 22px;border-radius:16px;border:3px solid var(--line);background:var(--card);font-weight:800;
+  font-size:1.05em;text-align:left;display:flex;flex-direction:column;justify-content:center}
+.chip small{font-weight:600;color:var(--muted);font-size:.7em}
+.chip.on{border-color:var(--deep);background:var(--deep);color:var(--on-deep)}
+.chip.on small{color:var(--on-deep);opacity:.85}
+
+/* APP HEADER */
+#top{position:sticky;top:0;z-index:30;background:var(--deep);color:var(--on-deep);display:flex;align-items:center;gap:14px;
+  padding:8px 16px;padding-top:max(8px,env(safe-area-inset-top));min-height:68px}
+#top .brand{font-weight:800;font-size:1.3em;display:flex;align-items:center;gap:8px;white-space:nowrap}
+#top .brand svg{width:44px;height:44px}
+#ctx{flex:1;min-width:0;background:rgba(255,255,255,.14);border:0;color:inherit;border-radius:12px;min-height:48px;padding:0 14px;
+  font-weight:700;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* SYNC STATUS */
+#sync{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border-radius:999px;border:0;
+  background:#fff;color:#10231A;font-weight:800;font-size:.72em;white-space:nowrap}
+#sync i{width:12px;height:12px;border-radius:50%;background:#94A3B8;display:inline-block}
+#sync[data-s=synced] i{background:#16A34A} #sync[data-s=offline] i,#sync[data-s=pending] i{background:#D97706}
+#sync[data-s=syncing] i{background:#2563EB;animation:pulse 1s infinite} #sync[data-s=error] i{background:#DC2626}
+#sync[data-s=local] i{background:#7C3AED}
+@keyframes pulse{50%{opacity:.3}}
+
+/* SCREENS */
+main{padding:16px 16px 0;max-width:1400px;margin:0 auto}
+.screen{display:none} .screen.on{display:block}
+
+/* BOTTOM NAV */
+#nav{position:fixed;left:0;right:0;bottom:0;z-index:40;background:var(--card);border-top:3px solid var(--deep);display:grid;
+  grid-template-columns:repeat(7,1fr);padding-bottom:env(safe-area-inset-bottom)}
+#nav button{min-height:var(--nav);border:0;background:none;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:2px;font-weight:800;font-size:.7em;color:var(--muted)}
+#nav button b{font-size:2em;line-height:1}
+#nav button.on{background:var(--soft);color:var(--deep);box-shadow:inset 0 5px 0 var(--deep)}
+
+/* FOOTER */
+footer{text-align:center;padding:28px 16px calc(var(--nav) + 40px);font-weight:700}
+footer a{color:var(--deep);min-height:44px;display:inline-flex;align-items:center}
+
+/* PHOTO BOX (GIF-style slideshow) */
+.ph{position:relative;aspect-ratio:1;border-radius:14px;overflow:hidden;background:var(--soft);width:100%}
+.ph img{width:100%;height:100%;object-fit:cover;display:block}
+.ph.empty img{display:none}
+.ph.empty::after{content:'🐸';position:absolute;inset:0;display:grid;place-items:center;font-size:2.4em}
+.ph.sm{width:72px;flex:none}
+
+/* TILES */
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px}
+.tile{position:relative;background:var(--card);border:3px solid var(--line);border-radius:var(--r);padding:10px;text-align:center;
+  display:flex;flex-direction:column;gap:6px;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:manipulation}
+.tile .nm{font-weight:800;font-size:1.05em;line-height:1.1;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.tile.sel{border-color:var(--deep);box-shadow:0 0 0 4px var(--lime)}
+.tile.done{background:var(--soft)}
+.tile .att{display:flex;justify-content:center;gap:10px;font-weight:800;font-size:1.05em}
+.tile .att span.cur{text-decoration:underline 3px var(--lime);text-underline-offset:4px}
+.hfz{font-size:.7em;font-weight:800;border-radius:999px;padding:3px 10px;align-self:center}
+.hfz.in{background:#DCFCE7;color:#14532D} .hfz.ni{background:#FEF3C7;color:#78350F}
+
+/* RECORD + NUMBER PAD */
+.rec-wrap{display:grid;grid-template-columns:1fr 390px;gap:16px;align-items:start}
+.pad{position:sticky;top:84px;background:var(--card);border:3px solid var(--deep);border-radius:var(--r);padding:14px}
+.pad-who{display:flex;gap:12px;align-items:center;margin-bottom:10px}
+.pad-name{font-size:1.4em;font-weight:800;line-height:1.1}
+.pad-disp{width:100%;border:3px solid var(--line);border-radius:14px;background:var(--bg);padding:6px 14px;text-align:right;display:block}
+.pad-disp.on{border-color:var(--deep)}
+.pad-disp small{display:block;text-align:left;font-weight:700;color:var(--muted)}
+.pad-disp b{font-size:3em;line-height:1.1;font-variant-numeric:tabular-nums}
+.pad-two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.keys{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}
+.keys button{min-height:72px;border-radius:14px;border:2px solid var(--line);background:var(--card);font-size:1.8em;font-weight:800}
+.keys button:active{background:var(--lime)}
+.pad-act{display:grid;grid-template-columns:1fr 1fr 2fr;gap:8px}
+.bar-row{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:14px}
+.ctx-big{font-size:1.4em;font-weight:800}
+#xp-pop{position:fixed;left:50%;top:40%;transform:translate(-50%,-50%);font-size:4em;font-weight:800;color:var(--deep);
+  text-shadow:0 3px 0 var(--lime);pointer-events:none;opacity:0;z-index:90}
+#xp-pop.show{animation:xpup 1.2s ease-out}
+@keyframes xpup{0%{opacity:0;transform:translate(-50%,-20%)}20%{opacity:1}100%{opacity:0;transform:translate(-50%,-120%)}}
+
+/* LAP COUNTER */
+.pacer-big{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;text-align:center}
+.pacer-big div{background:var(--bg);border-radius:14px;padding:6px}
+.pacer-big small{display:block;font-weight:800;color:var(--muted);letter-spacing:.06em}
+.pacer-big b{display:block;font-size:clamp(2.2em,7vh,5em);line-height:1;font-variant-numeric:tabular-nums}
+.pz-bar{height:18px;border-radius:9px;background:var(--soft);overflow:hidden;margin:12px 0}
+.pz-bar i{display:block;height:100%;width:0;background:var(--lime);border-right:4px solid var(--deep)}
+.lap-tiles{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+.tile.lap{cursor:pointer;padding-bottom:8px}
+.tile.lap .laps{font-size:3.4em;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
+.tile.lap .dist{font-weight:700;color:var(--muted);font-size:.85em}
+.tile.lap.flash{background:var(--lime)}
+.tile.lap.out{filter:grayscale(1);opacity:.5;border-style:dashed}
+.tile.lap .outtag{position:absolute;top:14px;left:14px;background:#10231A;color:#fff;font-weight:800;padding:4px 10px;border-radius:8px}
+.mini-undo{position:absolute;top:6px;right:6px;width:48px;height:48px;border-radius:12px;border:2px solid var(--line);
+  background:var(--card);font-weight:800}
+.tile.lap.holding{box-shadow:0 0 0 6px #DC2626 inset}
+
+/* TABLES */
+.tbl{width:100%;border-collapse:collapse;font-size:.9em}
+.tbl th,.tbl td{border-bottom:2px solid var(--line);padding:8px;text-align:left;vertical-align:middle}
+.tbl th{font-size:.8em;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.scroll-x{overflow-x:auto}
+
+/* STUDENTS */
+.srow{display:grid;grid-template-columns:56px 90px minmax(160px,1fr) auto auto auto;gap:12px;align-items:center;
+  border-bottom:2px solid var(--line);padding:10px 0}
+.srow input[type=checkbox]{width:32px;height:32px}
+.srow .seg{flex-wrap:nowrap}
+.srow .ph-btn{border:0;background:none;padding:0;width:100%;display:block}
+.class-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;border-bottom:2px solid var(--line);padding:8px 0}
+.class-row .nm{flex:1;min-width:140px;font-weight:800}
+
+/* GROWTH */
+.charts{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
+.chart svg{width:100%;height:auto;display:block}
+.chart .ln{stroke:var(--deep);stroke-width:4;fill:none}
+.chart .dot{fill:var(--deep)} .chart .tgt{stroke:#D97706;stroke-width:3;stroke-dasharray:8 6;fill:none}
+.chart .band{fill:#16A34A;opacity:.12}
+.chart text{fill:var(--ink);font-family:inherit;font-weight:700}
+.rec-list li{margin:6px 0}
+.bar-cell{display:flex;align-items:center;gap:8px}
+.bar-cell i{height:14px;background:var(--deep);border-radius:7px;display:inline-block}
+
+/* LIBRARY + SOUND BITES */
+.sb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.sb-btn{min-height:110px;border-radius:18px;border:4px solid rgba(0,0,0,.25);font-weight:800;font-size:1.1em;color:#10231A;
+  padding:10px;box-shadow:0 5px 0 rgba(0,0,0,.25)}
+.sb-btn:active{transform:translateY(4px);box-shadow:0 1px 0 rgba(0,0,0,.25)}
+.sb-btn.playing{outline:5px solid var(--deep)}
+.vid-card{display:flex;gap:10px;align-items:center;border-bottom:2px solid var(--line);padding:8px 0}
+#sb-fab{position:fixed;left:16px;bottom:calc(var(--nav) + 16px + env(safe-area-inset-bottom));z-index:45;width:76px;height:76px;
+  border-radius:50%;border:4px solid #10231A;background:var(--lime);font-size:2.2em;box-shadow:0 6px 0 rgba(0,0,0,.25)}
+#sb-drawer{position:fixed;left:0;right:0;bottom:calc(var(--nav) + env(safe-area-inset-bottom));z-index:44;background:var(--card);
+  border-top:4px solid var(--deep);max-height:42vh;overflow:auto;padding:14px 16px 100px;box-shadow:0 -10px 30px rgba(0,0,0,.2)}
+
+/* MODAL */
+#modal{position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;padding:16px}
+#modal.on{display:flex}
+#modal .box{background:var(--card);color:var(--ink);border-radius:22px;padding:22px;width:min(760px,100%);max-height:92vh;overflow:auto}
+#vplayer{position:fixed;inset:0;z-index:95;background:#000;display:flex;align-items:center;justify-content:center}
+#vplayer video{width:100%;height:100%;object-fit:contain}
+#vplayer button{position:absolute;top:16px;right:16px}
+#camera video{width:100%;border-radius:14px;background:#000;max-height:50vh}
+
+/* LOGIN + PASSPHRASE */
+#login{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;padding:24px}
+#login h1{font-size:3em;color:var(--deep)}
+#login .btn{min-width:320px}
+#pass input{width:100%}
+
+/* LEVEL UP + CONFETTI */
+#confetti{position:fixed;inset:0;pointer-events:none;z-index:99}
+#levelup{position:fixed;inset:0;z-index:98;display:none;align-items:center;justify-content:center;background:rgba(14,74,47,.85)}
+#levelup.on{display:flex}
+#levelup .box{background:var(--card);border:6px solid var(--lime);border-radius:28px;padding:28px;text-align:center;width:min(480px,92vw)}
+#levelup .box .ph{width:200px;margin:0 auto 10px}
+#levelup h2{font-size:2.4em;color:var(--deep)}
+
+/* TOAST */
+#toast{position:fixed;left:50%;bottom:calc(var(--nav) + 24px);transform:translateX(-50%);background:#10231A;color:#fff;font-weight:800;
+  padding:14px 22px;border-radius:14px;z-index:100;opacity:0;transition:opacity .2s;pointer-events:none;max-width:92vw;text-align:center}
+#toast.on{opacity:1} #toast.err{background:#B91C1C}
+
+/* PHONE / PORTRAIT */
+@media (max-width:900px){
+  .rec-wrap{grid-template-columns:1fr}
+  .pad{position:sticky;bottom:calc(var(--nav) + 8px);top:auto;z-index:20}
+  .keys button{min-height:56px;font-size:1.4em}
+  .pad-disp b{font-size:2em}
+  .pacer-big b{font-size:2.6em}
+  #nav button span{display:none}
+  .srow{grid-template-columns:44px 72px 1fr;}
+  #top .brand span{display:none}
+}
+
+/* PRINT (TIA report) */
+#print-area{display:none}
+@media print{
+  body>*:not(#print-area){display:none!important}
+  #print-area{display:block;font-size:11pt;color:#000}
+  #print-area .page{page-break-after:always}
+  #print-area table{width:100%;border-collapse:collapse}
+  #print-area th,#print-area td{border:1px solid #999;padding:4px 6px;text-align:left}
+  #print-area h1{font-size:18pt} #print-area h2{font-size:14pt}
+}
+@media (prefers-reduced-motion:reduce){ #xp-pop.show{animation:none} }
+</style>
+</head>
+<body>
+
+<!-- HFZ STANDARDS
+     FitnessGram Healthy Fitness Zone minimums by sex (M/F) and age (5–17; 17 = 17+).
+     "min" = score at or above this is in the HFZ. BMI "range" = [low, high] healthy range.
+     PACER values are 20 m laps (15 m results are converted by distance).
+     These are approximate reference values — edit them to match your current FitnessGram tables. -->
+<script type="application/json" id="hfz-standards">
+{
+  "pacer":   {"kind":"min","unit":"laps (20 m)",
+    "M":{"10":23,"11":23,"12":32,"13":41,"14":41,"15":51,"16":61,"17":61},
+    "F":{"10":7,"11":15,"12":15,"13":23,"14":23,"15":32,"16":32,"17":41}},
+  "pushups": {"kind":"min","unit":"reps",
+    "M":{"5":3,"6":3,"7":4,"8":5,"9":6,"10":7,"11":8,"12":10,"13":12,"14":14,"15":16,"16":18,"17":18},
+    "F":{"5":3,"6":3,"7":4,"8":5,"9":6,"10":7,"11":7,"12":7,"13":7,"14":7,"15":7,"16":7,"17":7}},
+  "curlups": {"kind":"min","unit":"reps",
+    "M":{"5":2,"6":2,"7":4,"8":6,"9":9,"10":12,"11":15,"12":18,"13":21,"14":24,"15":24,"16":24,"17":24},
+    "F":{"5":2,"6":2,"7":4,"8":6,"9":9,"10":12,"11":15,"12":18,"13":18,"14":18,"15":18,"16":18,"17":18}},
+  "sitreach":{"kind":"min","unit":"in",
+    "M":{"5":8,"6":8,"7":8,"8":8,"9":8,"10":8,"11":8,"12":8,"13":8,"14":8,"15":8,"16":8,"17":8},
+    "F":{"5":9,"6":9,"7":9,"8":9,"9":9,"10":9,"11":10,"12":10,"13":10,"14":10,"15":12,"16":12,"17":12}},
+  "bmi":     {"kind":"range","unit":"BMI",
+    "M":{"5":[13.8,16.8],"6":[13.7,17.1],"7":[13.8,17.6],"8":[14.0,18.2],"9":[14.2,18.9],"10":[14.5,19.7],"11":[14.9,20.6],
+         "12":[15.3,21.5],"13":[15.8,22.2],"14":[16.4,23.0],"15":[16.9,23.7],"16":[17.5,24.5],"17":[18.0,25.0]},
+    "F":{"5":[13.5,16.8],"6":[13.4,17.3],"7":[13.5,18.0],"8":[13.7,18.7],"9":[14.0,19.5],"10":[14.3,20.4],"11":[14.7,21.3],
+         "12":[15.2,22.2],"13":[15.7,22.9],"14":[16.2,23.5],"15":[16.7,24.0],"16":[17.1,24.5],"17":[17.4,24.9]}}
+}
+</script>
+
+<!-- XP LEVELS
+     First result = firstResultXP. Later results = firstResultXP + round(% improvement over previous best × multiplier).
+     Improvement is capped at maxImprovementPct so one huge jump can't skip 10 levels. No negative XP.
+     First time in the HFZ for a test = hfzBonus. A new level every xpPerLevel XP. -->
+<script type="application/json" id="xp-levels">
+{
+  "xpPerLevel": 100, "firstResultXP": 10, "improvementMultiplier": 2, "maxImprovementPct": 100, "hfzBonus": 25,
+  "names": ["Egg","Tadpole","Wiggler","Froglet","Hopper","Leaper","Lily Pad Pro","Bullfrog","Croak Captain","Pond Legend"]
+}
+</script>
+
+<!-- LOGIN SCREEN -->
+<section id="login">
+  <div id="login-buddy" style="font-size:5em">🐸</div>
+  <h1>GrowGrit</h1>
+  <p class="muted">Fitness growth for every frog in the pond.</p>
+  <div id="login-btns" class="row wrap" style="flex-direction:column"></div>
+  <p id="login-msg" class="muted small"></p>
+</section>
+
+<!-- PASSPHRASE -->
+<section id="pass" class="hide" style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px">
+  <div class="card" style="width:min(520px,100%)">
+    <h2 id="pass-title">Enter your passphrase</h2>
+    <p id="pass-desc" class="muted"></p>
+    <input type="password" id="pass-input" placeholder="Passphrase" autocomplete="off" style="min-height:60px;border:2px solid var(--line);border-radius:12px;padding:0 14px;width:100%">
+    <input type="password" id="pass-confirm" placeholder="Confirm passphrase" autocomplete="off" class="hide" style="min-height:60px;border:2px solid var(--line);border-radius:12px;padding:0 14px;width:100%;margin-top:10px">
+    <label id="pass-ack-wrap" class="row hide" style="margin-top:10px;align-items:flex-start">
+      <input type="checkbox" id="pass-ack" style="width:28px;height:28px;flex:none">
+      <span class="small">I understand: if I lose this passphrase, student names cannot be recovered by anyone.</span>
+    </label>
+    <p id="pass-err" style="color:var(--bad);font-weight:800;min-height:1.3em"></p>
+    <div class="row wrap">
+      <button class="btn go big grow" id="pass-go" onclick="submitPass()">Unlock</button>
+      <button class="btn" onclick="location.reload()">Back</button>
+    </div>
+  </div>
+</section>
+
+<!-- APP -->
+<div id="app" class="hide">
+
+  <!-- APP HEADER -->
+  <header id="top">
+    <div class="brand"><span id="top-buddy">🐸</span><span>GrowGrit</span></div>
+    <button id="ctx" onclick="go('home')" aria-label="Change class, session, or test"></button>
+    <!-- SYNC STATUS -->
+    <button id="sync" data-s="offline" onclick="syncTap()"><i></i><span>Saved offline</span></button>
+  </header>
+
+  <main>
+    <!-- SCREEN: HOME -->
+    <section class="screen" id="scr-home"></section>
+    <!-- SCREEN: RECORD -->
+    <section class="screen" id="scr-record"></section>
+    <!-- SCREEN: LAP COUNTER -->
+    <section class="screen" id="scr-laps"></section>
+    <!-- SCREEN: STUDENTS / ROSTER -->
+    <section class="screen" id="scr-students"></section>
+    <!-- SCREEN: GROWTH / ANALYTICS -->
+    <section class="screen" id="scr-growth"></section>
+    <!-- SCREEN: LIBRARY (TECHNIQUE VIDEOS + SOUND BITES) -->
+    <section class="screen" id="scr-library"></section>
+    <!-- SCREEN: SETTINGS -->
+    <section class="screen" id="scr-settings"></section>
+  </main>
+
+  <!-- FOOTER -->
+  <footer>
+    <a href="https://buymeacoffee.com/tools4teachers" target="_blank">🐸 Feed the Frogs and the Pond will Grow</a>
+  </footer>
+
+  <!-- SOUND BITES (floating button + drawer, usable on every screen incl. lap counter) -->
+  <button id="sb-fab" onclick="toggleDrawer()" aria-label="Sound bites">🔊</button>
+  <div id="sb-drawer" class="hide"></div>
+
+  <!-- BOTTOM NAV -->
+  <nav id="nav">
+    <button data-s="home" onclick="go('home')"><b>🏠</b><span>Home</span></button>
+    <button data-s="record" onclick="go('record')"><b>✏️</b><span>Record</span></button>
+    <button data-s="laps" onclick="go('laps')"><b>🏃</b><span>Laps</span></button>
+    <button data-s="students" onclick="go('students')"><b>🐸</b><span>Students</span></button>
+    <button data-s="growth" onclick="go('growth')"><b>📈</b><span>Growth</span></button>
+    <button data-s="library" onclick="go('library')"><b>🎬</b><span>Library</span></button>
+    <button data-s="settings" onclick="go('settings')"><b>⚙️</b><span>Settings</span></button>
+  </nav>
+</div>
+
+<!-- MODAL -->
+<div id="modal" onclick="if(event.target===this)closeModal()"><div class="box" id="modal-box"></div></div>
+
+<!-- LEVEL UP -->
+<div id="levelup" onclick="this.classList.remove('on')"><div class="box" id="levelup-box"></div></div>
+<canvas id="confetti"></canvas>
+<div id="xp-pop"></div>
+<div id="toast"></div>
+
+<!-- PRINT REPORT -->
+<div id="print-area"></div>
+
+<script>
+'use strict';
+/* ============================================================
+   CONSTANTS
+   ============================================================ */
+const APP_SOURCE = 'growgrit';
+const PERIODS = ['BOY','MOY','EOY'];
+const PERIOD_NAMES = {BOY:'Beginning of Year', MOY:'Middle of Year', EOY:'End of Year'};
+const HFZ = JSON.parse(document.getElementById('hfz-standards').textContent);
+const XPCFG = JSON.parse(document.getElementById('xp-levels').textContent);
+const GRADES = ['K','1','2','3','4','5','6','7','8','9','10','11','12'];
+const SB_COLORS = ['#A8D84C','#FFD84D','#7FE0D2','#FFB3CF','#9AD1FF','#F2C57C','#C39BFF','#FF8A5B'];
+const BUCKET_PHOTOS = 'student-photos', BUCKET_VIDEOS = 'technique-videos', BUCKET_SOUNDS = 'sound-bites';
+
+/* PACER PROGRESSION — 20 m laps per level (FitnessGram); other distances are derived from speed */
+const PACER_LAPS_20M = [7,8,8,9,9,10,10,11,11,11,12,12,13,13,13,14,14,15,15,16,16];
+const pacerSpeed = L => L === 1 ? 8 : 8 + 0.5 * L;            // km/h: 8.0, 9.0, 9.5, 10.0 …
+
+const TYPE_INFO = {
+  laps:        {label:'Laps',              unit:'laps', dir:'higher'},
+  timed_reps:  {label:'Timed max reps',    unit:'reps', dir:'higher'},
+  inarow_reps: {label:'In-a-row max reps', unit:'reps', dir:'higher'},
+  time:        {label:'Time',              unit:'sec',  dir:'lower'},
+  distance:    {label:'Distance / Height', unit:'in',   dir:'higher'}
+};
+const SCORING = {best:'Best', avg:'Average', avg2:'Average of 2 closest'};
+
+/* BUILT-IN FITNESSGRAM TESTS */
+const BUILTIN_TESTS = [
+  {id:'pacer',    name:'PACER',         type:'laps',        unit:'laps', dir:'higher', attempts:1, scoring:'best', icon:'🏃', focus:'endurance'},
+  {id:'pushups',  name:'Push-ups',      type:'inarow_reps', unit:'reps', dir:'higher', attempts:1, scoring:'best', icon:'💪', focus:'upper-body strength'},
+  {id:'curlups',  name:'Curl-ups',      type:'inarow_reps', unit:'reps', dir:'higher', attempts:1, scoring:'best', icon:'🌀', focus:'core strength'},
+  {id:'sitreach', name:'Sit-and-Reach', type:'distance',    unit:'in',   dir:'higher', attempts:2, scoring:'best', icon:'🧘', focus:'flexibility'},
+  {id:'bmi',      name:'BMI',           type:'bmi',         unit:'BMI',  dir:'none',   attempts:1, scoring:'best', icon:'📏', focus:'body composition'}
+];
+const FOCUS_TIPS = {
+  'endurance':'Build endurance: interval runs, tag games, and PACER practice 2–3× a week.',
+  'upper-body strength':'Build upper-body strength: wall and knee push-ups, planks, bear crawls.',
+  'core strength':'Build core strength: curl-up cadence practice, planks, dead bugs.',
+  'flexibility':'Improve flexibility: daily hamstring stretches after warm-up.',
+  'body composition':'Body composition: discuss healthy habits privately — never display publicly.'
+};
+
+/* ============================================================
+   HELPERS
+   ============================================================ */
+const $ = (s, r=document) => r.querySelector(s);
+const $$ = (s, r=document) => [...r.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid = () => crypto.randomUUID ? crypto.randomUUID()
+  : 'xxxxxxxx-xxxx-4xxx-8xxx-xxxxxxxxxxxx'.replace(/x/g, () => (Math.random()*16|0).toString(16));
+function cyrb128(str){let h1=1779033703,h2=3144134277,h3=1013904242,h4=2773480762;for(let i=0,k;i<str.length;i++){k=str.charCodeAt(i);
+  h1=h2^Math.imul(h1^k,597399067);h2=h3^Math.imul(h2^k,2869860233);h3=h4^Math.imul(h3^k,951274213);h4=h1^Math.imul(h4^k,2716044179);}
+  h1=Math.imul(h3^(h1>>>18),597399067);h2=Math.imul(h4^(h2>>>22),2869860233);h3=Math.imul(h1^(h3>>>17),951274213);h4=Math.imul(h2^(h4>>>19),2716044179);
+  h1^=(h2^h3^h4);h2^=h1;h3^=h1;h4^=h1;return [h1>>>0,h2>>>0,h3>>>0,h4>>>0];}
+/* Deterministic ids: two iPads recording the same student/test/session converge on one row */
+function hashUuid(s){const h=cyrb128(s).map(n=>n.toString(16).padStart(8,'0')).join('');
+  return `${h.slice(0,8)}-${h.slice(8,12)}-5${h.slice(13,16)}-8${h.slice(17,20)}-${h.slice(20,32)}`;}
+const localISO = (d=new Date()) => new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10);
+function curSY(){const d=new Date(),y=d.getFullYear();return d.getMonth()>=6?`${y}-${y+1}`:`${y-1}-${y}`;}
+const round2 = n => Math.round(n*100)/100;
+const opt = (v, label, sel) => `<option value="${esc(v)}"${String(v)===String(sel)?' selected':''}>${esc(label)}</option>`;
+function parseTime(s){ s=String(s).trim(); if(!s) return NaN; if(s.includes(':')){const [m,sec]=s.split(':');return (parseFloat(m)||0)*60+(parseFloat(sec)||0);} return parseFloat(s); }
+function fmtTime(sec){ if(sec==null||isNaN(sec)) return '–'; const m=Math.floor(sec/60), s=sec-m*60; return m? `${m}:${s<10?'0':''}${round2(s).toFixed(s%1?1:0)}` : `${round2(s)}s`; }
+function fmtVal(t, v){ if(v==null||v===''||isNaN(v)) return '–'; return t.type==='time' ? fmtTime(Number(v)) : String(round2(Number(v))); }
+function normSex(v){ v=String(v||'').trim().toLowerCase(); if(!v) return ''; if(v[0]==='f'||v==='girl') return 'F'; if(v[0]==='m'||v==='boy') return 'M'; return ''; }
+function normDate(v){ v=String(v||'').trim(); if(!v) return ''; if(/^\d{4}-\d{2}-\d{2}/.test(v)) return v.slice(0,10);
+  const m=v.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})$/); if(m){let y=+m[3]; if(y<100) y+=2000; return `${y}-${String(m[1]).padStart(2,'0')}-${String(m[2]).padStart(2,'0')}`;}
+  const d=new Date(v); return isNaN(d)?'':localISO(d); }
+function ageAt(sid, dateStr){ const b=BD[sid]; if(!b) return null; const [by,bm,bd]=b.split('-').map(Number);
+  const d=dateStr? new Date(dateStr+'T12:00:00') : new Date(); let a=d.getFullYear()-by;
+  if(d.getMonth()+1<bm || (d.getMonth()+1===bm && d.getDate()<bd)) a--; return a; }
+let toastT; function toast(msg, err){ const t=$('#toast'); t.textContent=msg; t.className='on'+(err?' err':''); clearTimeout(toastT); toastT=setTimeout(()=>t.className='',2600); }
+function download(name, text, type='text/csv'){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([text],{type})); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1000); }
+
+/* ============================================================
+   CRYPTO — same scheme as The Pond (PBKDF2 → AES-GCM, {iv,data})
+   ============================================================ */
+function b64(buf){ const u=new Uint8Array(buf); let s=''; for(let i=0;i<u.length;i+=0x8000) s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000)); return btoa(s); }
+const unb64 = s => Uint8Array.from(atob(s), c=>c.charCodeAt(0));
+async function deriveKey(pass, salt){
+  const mat=await crypto.subtle.importKey('raw',new TextEncoder().encode(pass),'PBKDF2',false,['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:100000,hash:'SHA-256'},mat,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+}
+async function enc(text, key=KEY){ const iv=crypto.getRandomValues(new Uint8Array(12));
+  const data=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,new TextEncoder().encode(String(text))); return {iv:b64(iv),data:b64(data)}; }
+const DEC_CACHE = {};
+async function dec(p, key=KEY){
+  if(!p) return ''; if(typeof p==='string') return p.startsWith('[')?'':p; if(!p.iv||!p.data) return '';
+  if(key===KEY && DEC_CACHE[p.data]!==undefined) return DEC_CACHE[p.data];
+  try{ const out=new TextDecoder().decode(await crypto.subtle.decrypt({name:'AES-GCM',iv:unb64(p.iv)},key,unb64(p.data))); if(key===KEY) DEC_CACHE[p.data]=out; return out; }
+  catch{ return ''; }
+}
+/* Photo bytes: 12-byte IV | AES-GCM ciphertext (matches bft-students.js) */
+async function encBuf(ab){ const iv=crypto.getRandomValues(new Uint8Array(12)); const e=await crypto.subtle.encrypt({name:'AES-GCM',iv},KEY,ab);
+  const out=new Uint8Array(12+e.byteLength); out.set(iv,0); out.set(new Uint8Array(e),12); return out.buffer; }
+async function decBuf(ab){ return crypto.subtle.decrypt({name:'AES-GCM',iv:new Uint8Array(ab,0,12)},KEY,new Uint8Array(ab,12)); }
+
+/* ============================================================
+   INDEXEDDB — photos, videos, sounds (blobs stay on device)
+   ============================================================ */
+let idb = null;
+function idbOpen(){ return new Promise((res,rej)=>{ const r=indexedDB.open('GrowGrit',1);
+  r.onupgradeneeded=()=>r.result.createObjectStore('blobs'); r.onsuccess=()=>{idb=r.result;res(idb);}; r.onerror=()=>rej(r.error); }); }
+function idbReq(mode, fn){ return new Promise((res,rej)=>{ if(!idb) return res(null); const tx=idb.transaction('blobs',mode); const r=fn(tx.objectStore('blobs'));
+  tx.oncomplete=()=>res(r&&r.result); tx.onerror=()=>rej(tx.error); }); }
+const idbGet = k => idbReq('readonly', s=>s.get(k));
+const idbPut = (k,v) => idbReq('readwrite', s=>s.put(v,k));
+const idbDel = k => idbReq('readwrite', s=>s.delete(k));
+
+/* ============================================================
+   STATE — localStorage first, then Supabase
+   ============================================================ */
+let sb=null, user=null, KEY=null, pending=null, authStarted=false, newPass=false, passSalt=null;
+let DB=null;
+const NM={}, CN={}, GR={}, SX={}, BD={};                 // decrypted: names, class names, grades, sex, birthdates
+const PHOTO_URL={}, FRAMES={}, FR_LOADED={}, AVATAR_URL={}, MEDIA_URL={};
+let screen='home';
+
+function defaults(){ return {
+  v:1,
+  settings:{ classOrder:[], lastClass:null, lastPeriod:'BOY', lastTest:'pacer', schoolYear:curSY(),
+    course:{mode:'20', custom:25, loop:400}, cadence:true, testOverrides:{}, levelNames:null,
+    photoMode:{}, defaultPhotoMode:'loop', frameMs:180 },
+  classes:{}, students:{}, tests:{}, sessions:{}, results:{}, photos:{}, videos:{}, sounds:{},
+  queue:{}, blobs:{}, blobDel:[], lastSync:null, lastError:'',
+  awarded:{},          // result id → XP already sent to the Pond ledger via BFT_STUDENTS.award()
+  mainLocal:{},        // student id → main photo taken on this device (IndexedDB "avatarlocal:<id>")
+  avatarPending:{}     // student id → main photo waiting for BFT_STUDENTS.uploadPhoto()
+};}
+const LSK = () => 'gg_v1_' + user.id;
+function loadState(){ let d=null; try{ d=JSON.parse(localStorage.getItem(LSK())); }catch{}
+  const def=defaults(); DB=Object.assign(def, d||{}); DB.settings=Object.assign(defaults().settings, DB.settings||{}); }
+function persist(){ try{ localStorage.setItem(LSK(), JSON.stringify(DB)); return true; }
+  catch(e){ setSync('error','Device storage is full — export a backup in Settings.'); return false; } }
+let syncT=null;
+function save(){ if(!persist()) return; if(user.local){ setSync('local'); return; }
+  setSync(navigator.onLine ? 'pending' : 'offline'); clearTimeout(syncT); syncT=setTimeout(syncNow, 600); }
+function saveSettings(){ q('fitness_settings', user.id, {user_id:user.id, data:DB.settings}); save(); }
+const live = map => Object.values(map).filter(r => r && !r.deleted);
+
+/* QUEUE: every change waits here until Supabase confirms it */
+function q(table, id, row, mode='upsert', opts={}){
+  if(user.local) return;
+  const k=table+':'+id, ex=DB.queue[k], t=Date.now();
+  if(ex && mode==='update' && ex.mode!=='delete'){ Object.assign(ex.row,row); ex.t=t; if(opts.blob) ex.blob=opts.blob; return; }
+  DB.queue[k]={table, id, row:{...row}, mode, t, blob:opts.blob||ex?.blob||null};
+}
+
+/* ============================================================
+   SYNC — 600 ms debounce, push first, then pull (Supabase wins)
+   ============================================================ */
+const SYNC_LABEL = {local:'This device only', offline:'Saved offline', pending:'Saved · syncing soon', syncing:'Syncing…', synced:'Synced', error:'Sync error'};
+function setSync(s, msg){ const el=$('#sync'); if(!el) return; el.dataset.s=s; el.querySelector('span').textContent=SYNC_LABEL[s]||s;
+  if(msg!==undefined && DB) DB.lastError=msg; }
+function syncTap(){ if(user?.local) return toast('This device only — sign in with Google to back up to The Pond.');
+  if($('#sync').dataset.s==='error') openModal(`<h2>⚠️ Sync problem</h2><p>${esc(DB.lastError||'Unknown error')}</p>
+    <p class="muted">Everything is still saved on this device. Nothing is lost.</p>
+    <div class="row wrap"><button class="btn go" onclick="closeModal();syncNow()">Try again</button>
+    <button class="btn" onclick="closeModal();signIn()">Sign in again</button><button class="btn" onclick="closeModal()">Close</button></div>`);
+  else syncNow(); }
+let syncing=false, syncAgain=false;
+const TABLE_ORDER = ['classes','beta_students','fitness_settings','fitness_tests','fitness_sessions','fitness_results',
+                     'student_photos','technique_videos','sound_bites'];
+const bftReady = () => !!(window.BFT_STUDENTS && BFT_STUDENTS.ready && BFT_STUDENTS.ready());
+async function syncNow(){
+  if(!user || user.local) return;
+  if(!sb || !navigator.onLine){ setSync('offline'); return; }
+  if(syncing){ syncAgain=true; return; }
+  syncing=true; setSync('syncing');
+  const errs=[];
+  try{
+    const {data} = await sb.auth.getSession();
+    if(!data?.session){ throw new Error('Signed out of Google — tap "Sign in again" to resume syncing.'); }
+    await pushAll(errs);
+    await flushAvatars(errs);
+    await flushXP(errs);
+    await pullAll(errs);
+    seedAwarded();
+    await decryptAll();
+    Object.keys(FR_LOADED).forEach(k=>delete FR_LOADED[k]);
+    DB.lastSync=new Date().toISOString();
+    persist();
+    if(errs.length){ setSync('error', errs[0]); }
+    else if(Object.keys(DB.queue).length || Object.keys(DB.blobs).length){ setSync('pending'); }
+    else setSync('synced','');
+    rerender();
+  }catch(e){ console.warn('[GrowGrit] sync', e); setSync(navigator.onLine?'error':'offline', e.message||String(e)); }
+  syncing=false;
+  if(syncAgain){ syncAgain=false; clearTimeout(syncT); syncT=setTimeout(syncNow,600); }
+}
+function friendlyErr(t, e){ const m=e?.message||String(e);
+  if(/relation .* does not exist|Could not find the table|schema cache/i.test(m)) return `GrowGrit tables are not set up yet (${t}). Run migration 002 in Supabase.`;
+  return `${t}: ${m}`; }
+async function pushAll(errs){
+  /* 1. files first (rows that point at a file wait for it) */
+  for(const [k,b] of Object.entries(DB.blobs)){
+    const data=await idbGet(b.key); if(!data){ delete DB.blobs[k]; continue; }
+    const body = data instanceof Blob ? data : new Blob([data],{type:b.type});
+    const {error}=await sb.storage.from(b.bucket).upload(b.path, body, {upsert:true, contentType:b.type});
+    if(error) errs.push(friendlyErr(b.bucket, error)); else delete DB.blobs[k];
+  }
+  for(const d of [...DB.blobDel]){ const {error}=await sb.storage.from(d.bucket).remove([d.path]); if(!error) DB.blobDel.splice(DB.blobDel.indexOf(d),1); }
+  /* 2. rows, parents before children */
+  for(const t of TABLE_ORDER){
+    const items=Object.entries(DB.queue).filter(([,i])=>i.table===t && !(i.blob && DB.blobs[i.blob]));
+    if(!items.length) continue;
+    const done = ([k,i]) => { if(DB.queue[k] && DB.queue[k].t===i.t) delete DB.queue[k]; };
+    const ups=items.filter(([,i])=>i.mode==='upsert');
+    const groups={}; ups.forEach(e=>{ const sig=Object.keys(e[1].row).sort().join(','); (groups[sig]=groups[sig]||[]).push(e); });
+    for(const g of Object.values(groups)){
+      for(let j=0;j<g.length;j+=200){ const chunk=g.slice(j,j+200);
+        const {error}=await sb.from(t).upsert(chunk.map(([,i])=>i.row), {onConflict: t==='fitness_settings'?'user_id':'id'});
+        if(error){ errs.push(friendlyErr(t,error)); break; } chunk.forEach(done); }
+    }
+    for(const e of items.filter(([,i])=>i.mode==='update')){ const {error}=await sb.from(t).update(e[1].row).eq('id',e[1].id);
+      if(error) errs.push(friendlyErr(t,error)); else done(e); }
+    for(const e of items.filter(([,i])=>i.mode==='delete')){ const {error}=await sb.from(t).delete().eq('id',e[1].id);
+      if(error) errs.push(friendlyErr(t,error)); else done(e); }
+  }
+  persist();
+}
+/* XP → shared Pond ledger. fitness_results.xp is the display copy (target); DB.awarded is what the ledger already has.
+   Only the difference is sent, through BFT_STUDENTS.award(), so edits never double-count. */
+async function flushXP(errs){
+  if(!bftReady()) return;
+  for(const r of Object.values(DB.results)){
+    const want=r.deleted?0:(r.xp||0), diff=want-(DB.awarded[r.id]||0);
+    if(!diff || DB.queue['beta_students:'+r.student_id]) continue;
+    const t=getTest(r.test_id), per=DB.sessions[r.session_id]?.period||'';
+    try{ await BFT_STUDENTS.award([r.student_id], diff, {appSource:APP_SOURCE, classId:DB.students[r.student_id]?.class_id||null,
+           reason:`GrowGrit ${t.name} ${per}${diff<0?' (correction)':' growth'}`});
+         DB.awarded[r.id]=want; }
+    catch(e){ errs.push(friendlyErr('xp_events',e)); break; }
+  }
+  persist();
+}
+/* Results that arrived from another device were already awarded there. */
+function seedAwarded(){
+  for(const r of Object.values(DB.results)) if(DB.awarded[r.id]===undefined) DB.awarded[r.id]=r.deleted?0:(r.xp||0);
+  for(const id of Object.keys(DB.awarded)) if(!DB.results[id]) delete DB.awarded[id];
+}
+/* Main profile photo → beta_students.photo_path via BFT_STUDENTS.uploadPhoto() */
+async function flushAvatars(errs){
+  if(!bftReady()) return;
+  for(const sid of Object.keys(DB.avatarPending)){
+    if(!DB.students[sid]){ delete DB.avatarPending[sid]; continue; }
+    if(DB.queue['beta_students:'+sid]) continue;
+    try{ const ab=await idbGet('avatarlocal:'+sid); if(!ab){ delete DB.avatarPending[sid]; continue; }
+      const path=await BFT_STUDENTS.uploadPhoto(sid, new Blob([await decBuf(ab)],{type:'image/webp'}));
+      DB.students[sid].photo_path=path; delete DB.avatarPending[sid]; }
+    catch(e){ errs.push(friendlyErr('student-photos',e)); }
+  }
+  persist();
+}
+async function fetchAll(table, build){ let out=[], from=0; const N=1000;
+  for(;;){ let qb=sb.from(table).select('*'); if(build) qb=build(qb); const {data,error}=await qb.range(from,from+N-1);
+    if(error) throw error; out=out.concat(data); if(data.length<N) break; from+=N; } return out; }
+function mergeServer(map, rows, table){
+  const ids=new Set();
+  for(const r of rows){ ids.add(r.id); if(DB.queue[table+':'+r.id]) continue; if(r.deleted) delete map[r.id]; else map[r.id]=r; }
+  for(const id of Object.keys(map)) if(!ids.has(id) && !DB.queue[table+':'+id]) delete map[id];
+}
+async function pullAll(errs){
+  const u=user.id;
+  try{ const {data,error}=await sb.from('fitness_settings').select('*').eq('user_id',u).maybeSingle(); if(error) throw error;
+    if(data && !DB.queue['fitness_settings:'+u]) DB.settings=Object.assign(defaults().settings, data.data||{});
+  }catch(e){ errs.push(friendlyErr('fitness_settings',e)); }
+  try{
+    const classes=await fetchAll('classes', qb=>qb.eq('user_id',u).or('archived.is.null,archived.eq.false'));
+    mergeServer(DB.classes, classes, 'classes');
+    const ids=classes.map(c=>c.id); let students=[];
+    for(let i=0;i<ids.length;i+=40) students=students.concat(await fetchAll('beta_students', qb=>qb.in('class_id',ids.slice(i,i+40)).or('archived.is.null,archived.eq.false')));
+    mergeServer(DB.students, students, 'beta_students');
+  }catch(e){ errs.push(friendlyErr('roster',e)); }
+  for(const [t,key] of [['fitness_tests','tests'],['fitness_sessions','sessions'],['fitness_results','results'],
+                        ['student_photos','photos'],['technique_videos','videos'],['sound_bites','sounds']]){
+    try{ mergeServer(DB[key], await fetchAll(t), t); }catch(e){ errs.push(friendlyErr(t,e)); }
+  }
+}
+window.addEventListener('online', ()=>{ if(user && !user.local) syncNow(); });
+window.addEventListener('offline', ()=>{ if(user && !user.local) setSync('offline'); });
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden && DB) persist(); });
+
+/* ============================================================
+   AUTH — one Google login shared with every Pond app
+   ============================================================ */
+window.addEventListener('DOMContentLoaded', boot);
+async function boot(){
+  try{ window.BFT_THEME && BFT_THEME.init('growgrit'); }catch{}
+  if(window.BFT && BFT.svg){ $('#login-buddy').innerHTML=BFT.svg('buddy-waving',{size:'xl',animate:'idle'}); $('#top-buddy').innerHTML=BFT.svg('buddy-happy',{size:'sm'}); }
+  try{ await idbOpen(); }catch(e){ console.warn('IndexedDB unavailable', e); }
+  const cfg=window.BFT_CONFIG||{};
+  if(window.supabase && cfg.SUPABASE_URL){ try{ sb=supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY); }catch{ sb=null; } }
+  if(sb){
+    sb.auth.onAuthStateChange((ev,s)=>{ if(s?.user && !authStarted && ev==='SIGNED_IN') onCloudUser(s.user); });
+    try{ const {data}=await sb.auth.getSession(); if(data?.session?.user) return onCloudUser(data.session.user); }catch{}
+  }
+  showLogin();
+}
+function cachedUser(){ try{ return JSON.parse(localStorage.getItem('gg_last_user')); }catch{ return null; } }
+function showLogin(msg){
+  $('#login').classList.remove('hide'); const c=cachedUser(); const b=[];
+  if(sb && navigator.onLine) b.push(`<button class="btn go big" onclick="signIn()">Sign in with Google</button>`);
+  if(c && localStorage.getItem('gg_salt_'+c.id)) b.push(`<button class="btn big" onclick="continueOffline()">Continue offline as ${esc(c.email)}</button>`);
+  b.push(`<button class="btn big" onclick="useLocal()">Use on this device only</button>`);
+  $('#login-btns').innerHTML=b.join('');
+  $('#login-msg').textContent = msg || (!sb ? 'Offline: The Pond sign-in is unavailable right now. Your data on this device still works.' : '');
+}
+async function signIn(){ if(!sb) return toast('Sign-in needs an internet connection.', true); if(DB) persist();
+  const {error}=await sb.auth.signInWithOAuth({provider:'google', options:{redirectTo: location.origin+location.pathname}});
+  if(error) toast(error.message, true); }
+async function signOut(){ if(DB) persist(); try{ await sb?.auth.signOut(); }catch{} localStorage.removeItem('gg_last_user'); location.reload(); }
+async function onCloudUser(u){
+  if(authStarted) return; authStarted=true;
+  pending={id:u.id, email:u.email, local:false};
+  localStorage.setItem('gg_last_user', JSON.stringify({id:u.id,email:u.email}));
+  let salt=localStorage.getItem('gg_salt_'+u.id);
+  if(navigator.onLine){ try{ const {data}=await sb.from('beta_profiles').select('crypto_salt').eq('user_id',u.id).maybeSingle();
+    if(data?.crypto_salt){ salt=data.crypto_salt; localStorage.setItem('gg_salt_'+u.id, salt); } }catch{} }
+  openPass(salt);
+}
+function continueOffline(){ const c=cachedUser(); if(!c) return; authStarted=true; pending={id:c.id,email:c.email,local:false}; openPass(localStorage.getItem('gg_salt_'+c.id)); }
+function useLocal(){ authStarted=true; pending={id:'local',email:'This device',local:true}; openPass(localStorage.getItem('gg_salt_local')); }
+function openPass(saltB64){
+  newPass=!saltB64; passSalt= saltB64 ? unb64(saltB64) : crypto.getRandomValues(new Uint8Array(16));
+  $('#login').classList.add('hide'); $('#pass').classList.remove('hide');
+  $('#pass-title').textContent = newPass ? 'Create your passphrase' : 'Enter your passphrase';
+  $('#pass-desc').textContent = newPass ? 'This passphrase encrypts student names on this device before anything is saved. It never leaves this device.'
+    : (pending.local ? 'Unlock GrowGrit on this device.' : 'The same passphrase you use in The Pond. It unlocks student names.');
+  $('#pass-confirm').classList.toggle('hide',!newPass); $('#pass-ack-wrap').classList.toggle('hide',!newPass);
+  $('#pass-go').textContent = newPass ? 'Create & continue' : 'Unlock';
+  setTimeout(()=>$('#pass-input').focus(),50);
+}
+document.addEventListener('keydown', e=>{ if(e.key==='Enter' && !$('#pass').classList.contains('hide')) submitPass(); });
+async function submitPass(){
+  const p=$('#pass-input').value, err=$('#pass-err'); err.textContent='';
+  if(newPass){
+    if(p.length<8) return err.textContent='Use at least 8 characters.';
+    if(p!==$('#pass-confirm').value) return err.textContent='Passphrases do not match.';
+    if(!$('#pass-ack').checked) return err.textContent='Please check the box.';
+    if(!pending.local && !(sb && navigator.onLine)) return err.textContent='Connect to the internet once to set up your Pond passphrase.';
+  }
+  $('#pass-go').disabled=true; $('#pass-go').textContent='Unlocking…';
+  try{
+    const key=await deriveKey(p, passSalt);
+    const vk='gg_verifier_'+pending.id, ver=localStorage.getItem(vk);
+    if(ver){ if(!(await dec(JSON.parse(ver), key))) throw new Error('Incorrect passphrase.'); }
+    else if(!newPass && !pending.local && sb && navigator.onLine){
+      const {data}=await sb.from('classes').select('name_encrypted').eq('user_id',pending.id).not('name_encrypted','is',null).limit(1);
+      if(data?.length && data[0].name_encrypted?.iv && !(await dec(data[0].name_encrypted, key))) throw new Error('Incorrect passphrase.');
+    }
+    if(newPass && !pending.local){
+      const {error}=await sb.from('beta_profiles').upsert({user_id:pending.id, email:pending.email, crypto_salt:b64(passSalt)},{onConflict:'user_id'});
+      if(error) throw error;
+    }
+    localStorage.setItem('gg_salt_'+pending.id, b64(passSalt));
+    localStorage.setItem(vk, JSON.stringify(await enc('growgrit-ok', key)));
+    $('#pass-input').value=''; $('#pass-confirm').value='';
+    KEY=key; user=pending; await startApp();
+  }catch(e){ err.textContent=e.message||String(e); }
+  $('#pass-go').disabled=false; $('#pass-go').textContent=newPass?'Create & continue':'Unlock';
+}
+async function startApp(){
+  $('#pass').classList.add('hide'); $('#app').classList.remove('hide');
+  loadState(); await decryptAll();
+  setSync(user.local?'local':(navigator.onLine?'pending':'offline'));
+  startTicker(); go('home');
+  if(!user.local && sb && window.BFT_STUDENTS){ try{ BFT_STUDENTS.init(sb, {id:user.id, email:user.email}, KEY); }catch(e){ console.warn('BFT_STUDENTS', e); } }
+  if(!user.local){ syncNow(); try{ if(navigator.onLine && window.BFT_THEME) BFT_THEME.syncFromProfile(sb, user.id); }catch{} }
+}
+
+/* ============================================================
+   ROSTER — shared Pond classes + beta_students (names encrypted)
+   ============================================================ */
+async function decryptAll(){
+  for(const c of Object.values(DB.classes)){
+    CN[c.id]=(await dec(c.name_encrypted)) || (c.name && !String(c.name).startsWith('[') ? c.name : 'Class');
+    GR[c.id]=(await dec(c.grade_level_encrypted)) || (c.grade_level && !String(c.grade_level).startsWith('[') ? c.grade_level : '');
+  }
+  for(const s of Object.values(DB.students)){
+    let n=await dec(s.name_encrypted);
+    if(!n){ const f=await dec(s.first_name_encrypted), l=await dec(s.last_name_encrypted); n=[f,l].filter(Boolean).join(' '); }
+    NM[s.id]=n||'[unnamed]'; SX[s.id]=normSex(await dec(s.gender_encrypted)); BD[s.id]=normDate(await dec(s.birthday_encrypted));
+  }
+}
+function orderedClasses(){ const order=DB.settings.classOrder||[];
+  return Object.values(DB.classes).filter(c=>!c.archived).sort((a,b)=>{ const ia=order.indexOf(a.id), ib=order.indexOf(b.id);
+    if(ia!==-1||ib!==-1) return (ia===-1?1e9:ia)-(ib===-1?1e9:ib); return (CN[a.id]||'').localeCompare(CN[b.id]||''); }).map(c=>c.id); }
+function studentsOf(cid){ return Object.values(DB.students).filter(s=>s.class_id===cid && !s.archived).map(s=>s.id)
+  .sort((a,b)=>(NM[a]||'').localeCompare(NM[b]||'')); }
+function moveClass(cid, dir){ const ids=orderedClasses(); const i=ids.indexOf(cid), j=i+dir; if(j<0||j>=ids.length) return;
+  [ids[i],ids[j]]=[ids[j],ids[i]]; DB.settings.classOrder=ids; saveSettings(); renderStudents(); }
+async function setGrade(cid, g){ GR[cid]=g; const e=g?await enc(g):null; DB.classes[cid].grade_level_encrypted=e;
+  if(DB.classes[cid].grade_level!==undefined) DB.classes[cid].grade_level='[encrypted]';
+  q('classes',cid,{grade_level_encrypted:e},'update'); save(); toast(`${CN[cid]}: grade ${g||'—'}`); }
+async function addClass(name, grade){
+  const id=uid(); const row={id, user_id:user.id, name:'[encrypted]', grade_level:'[encrypted]', name_encrypted:await enc(name),
+    grade_level_encrypted: grade? await enc(grade):null, archived:false};
+  DB.classes[id]=row; CN[id]=name; GR[id]=grade||''; q('classes',id,row); DB.settings.classOrder=[...orderedClasses().filter(x=>x!==id), id];
+  q('fitness_settings', user.id, {user_id:user.id, data:DB.settings}); return id; }
+async function addStudent(cid, full){
+  full=full.trim(); if(!full) return null; const parts=full.split(/\s+/); const first=parts.shift(), last=parts.join(' ');
+  const id=uid(); const row={id, class_id:cid, name_encrypted:await enc(full), first_name_encrypted:await enc(first),
+    last_name_encrypted: last? await enc(last):null, archived:false};
+  DB.students[id]=row; NM[id]=full; SX[id]=''; BD[id]=''; q('beta_students',id,row); return id; }
+async function setSex(sid, v){ SX[sid]=v; const e=v?await enc(v):null; DB.students[sid].gender_encrypted=e; q('beta_students',sid,{gender_encrypted:e},'update'); save(); }
+async function setBday(sid, v){ BD[sid]=normDate(v); const e=BD[sid]?await enc(BD[sid]):null; DB.students[sid].birthday_encrypted=e;
+  q('beta_students',sid,{birthday_encrypted:e},'update'); save(); const a=$('#age-'+sid); if(a) a.textContent=ageAt(sid)??'—'; }
+
+/* IMPORT ROSTER — {"classes":[{"className":"Period 3","students":["John Smith","Maria Garcia"]}]} */
+let importData=null;
+function openImport(){
+  openModal(`<h2>📥 Import roster</h2>
+  <p class="muted small">Paste JSON or pick a .json file. Format: <code>{"classes":[{"className":"Period 3","students":["John Smith"]}]}</code></p>
+  <textarea id="imp-text" placeholder='{"classes":[{"className":"Period 3","students":["John Smith","Maria Garcia"]}]}'></textarea>
+  <div class="row wrap" style="margin:10px 0"><input type="file" accept=".json,application/json" onchange="impFile(this)">
+  <button class="btn go" onclick="impPreview()">Preview</button><button class="btn" onclick="closeModal()">Cancel</button></div>
+  <div id="imp-prev"></div>`);
+}
+function impFile(inp){ const f=inp.files[0]; if(!f) return; f.text().then(t=>{ $('#imp-text').value=t; impPreview(); }); }
+function impPreview(){
+  let data; try{ data=JSON.parse($('#imp-text').value); }catch(e){ return $('#imp-prev').innerHTML=`<p style="color:var(--bad)">That isn't valid JSON: ${esc(e.message)}</p>`; }
+  if(!data || !Array.isArray(data.classes)) return $('#imp-prev').innerHTML=`<p style="color:var(--bad)">Missing "classes" list.</p>`;
+  importData=data.classes.filter(c=>c && c.className).map(c=>({className:String(c.className).trim(), students:(c.students||[]).map(s=>String(s).trim()).filter(Boolean)}));
+  const byName={}; orderedClasses().forEach(id=>byName[(CN[id]||'').toLowerCase()]=id);
+  $('#imp-prev').innerHTML=`<h3>Preview — set a grade for each class</h3><table class="tbl"><tr><th>Class</th><th>Students</th><th>Grade</th></tr>
+    ${importData.map((c,i)=>{ const ex=byName[c.className.toLowerCase()]; const have=ex? new Set(studentsOf(ex).map(s=>(NM[s]||'').toLowerCase())):new Set();
+      const add=c.students.filter(s=>!have.has(s.toLowerCase())).length;
+      return `<tr><td><b>${esc(c.className)}</b>${ex?' <span class="muted small">(existing)</span>':''}</td><td>${add} new${c.students.length-add?`, ${c.students.length-add} already there`:''}</td>
+      <td><select id="imp-g-${i}">${opt('','—',ex?GR[ex]:'')}${GRADES.map(g=>opt(g,g==='K'?'K':'Grade '+g, ex?GR[ex]:'')).join('')}</select></td></tr>`; }).join('')}</table>
+    <div class="row wrap" style="margin-top:10px"><span class="muted small">Bulk grade:</span><select onchange="$$('[id^=imp-g-]').forEach(s=>s.value=this.value)">${opt('','—','')}${GRADES.map(g=>opt(g,g,'')).join('')}</select>
+    <button class="btn go big" onclick="doImport()">Import ${importData.length} class${importData.length===1?'':'es'}</button></div>`;
+}
+async function doImport(){
+  const byName={}; orderedClasses().forEach(id=>byName[(CN[id]||'').toLowerCase()]=id); let nc=0, ns=0;
+  for(let i=0;i<importData.length;i++){ const c=importData[i]; const g=$('#imp-g-'+i).value;
+    let cid=byName[c.className.toLowerCase()];
+    if(!cid){ cid=await addClass(c.className,g); nc++; } else if(g && g!==GR[cid]) await setGrade(cid,g);
+    const have=new Set(studentsOf(cid).map(s=>(NM[s]||'').toLowerCase()));
+    for(const s of c.students){ if(have.has(s.toLowerCase())) continue; await addStudent(cid,s); have.add(s.toLowerCase()); ns++; }
+    if(!DB.settings.lastClass) DB.settings.lastClass=cid;
+  }
+  saveSettings(); closeModal(); toast(`Imported ${nc} new class${nc===1?'':'es'}, ${ns} student${ns===1?'':'s'}`); rerender();
+}
+
+/* ============================================================
+   STUDENT PHOTOS — GIF-style slideshow (Loop / Boomerang)
+   ============================================================ */
+function photoBox(sid, cls=''){ return `<div class="ph ${cls}" data-sid="${sid}"><img alt="" draggable="false"></div>`; }
+const photoRows = sid => live(DB.photos).filter(p=>p.student_id===sid).sort((a,b)=>(a.sort||0)-(b.sort||0));
+const photoMode = sid => DB.settings.photoMode[sid] || DB.settings.defaultPhotoMode || 'loop';
+async function getBlob(key, bucket, path){
+  let b=await idbGet(key); if(b) return b;
+  if(!sb || user.local || !navigator.onLine || !path) return null;
+  const {data,error}=await sb.storage.from(bucket).download(path); if(error||!data) return null;
+  b = bucket===BUCKET_PHOTOS ? await data.arrayBuffer() : data; await idbPut(key,b); return b;
+}
+async function ensureFrames(sid){
+  if(FR_LOADED[sid]) return; FR_LOADED[sid]=true;
+  const urls=[];
+  for(const p of photoRows(sid)){
+    if(!PHOTO_URL[p.id]){ try{ const ab=await getBlob('photo:'+p.id, BUCKET_PHOTOS, p.storage_path);
+      if(ab) PHOTO_URL[p.id]=URL.createObjectURL(new Blob([await decBuf(ab)],{type:'image/webp'})); }catch(e){ console.warn('photo',e); } }
+    if(PHOTO_URL[p.id]) urls.push(PHOTO_URL[p.id]);
+  }
+  /* main photo first (beta_students.photo_path), then the extra frames */
+  const st=DB.students[sid]; let ab=null;
+  try{
+    if(DB.mainLocal[sid] && (user.local || DB.avatarPending[sid])) ab=await idbGet('avatarlocal:'+sid);
+    else if(st?.photo_path) ab=await getBlob(`avatar:${sid}:${st.updated_at||''}`, BUCKET_PHOTOS, st.photo_path);
+    if(!ab && DB.mainLocal[sid]) ab=await idbGet('avatarlocal:'+sid);
+    if(ab){ if(AVATAR_URL[sid]) URL.revokeObjectURL(AVATAR_URL[sid]); AVATAR_URL[sid]=URL.createObjectURL(new Blob([await decBuf(ab)],{type:'image/webp'})); }
+  }catch(e){ console.warn('main photo', e); }
+  FRAMES[sid] = AVATAR_URL[sid] ? [AVATAR_URL[sid], ...urls] : urls;
+}
+const hasMainPhoto = sid => !!(DB.students[sid]?.photo_path || DB.mainLocal[sid]);
+let tick=0, tickT=null;
+function startTicker(){ clearInterval(tickT); tickT=setInterval(()=>{ tick++;
+  $$('.screen.on .ph[data-sid], #modal .ph[data-sid], #levelup .ph[data-sid]').forEach(el=>{
+    const sid=el.dataset.sid, urls=FRAMES[sid]||[], n=urls.length, img=el.firstElementChild; let src='';
+    if(n){ let i=0; if(n>1){ if(photoMode(sid)==='boomerang'){ const p=2*n-2, k=tick%p; i=k<n?k:p-k; } else i=tick%n; } src=urls[i]; }
+    else src=AVATAR_URL[sid]||'';
+    if(src){ if(img.getAttribute('src')!==src) img.src=src; } else img.removeAttribute('src');
+    el.classList.toggle('empty',!src);
+  }); }, Math.max(80, DB.settings.frameMs||180)); }
+function webpOK(){ const c=document.createElement('canvas'); c.width=c.height=1; return c.toDataURL('image/webp').startsWith('data:image/webp'); }
+/* compress: longest side 360 px, WebP (JPEG fallback) */
+async function compressImage(src, max=360, square=false){
+  const bmp = src instanceof HTMLVideoElement ? src : await createImageBitmap(src);
+  const w0=bmp.videoWidth||bmp.width, h0=bmp.videoHeight||bmp.height; const c=document.createElement('canvas'); const x=c.getContext('2d');
+  if(square){ const s=Math.min(w0,h0); c.width=c.height=max; x.drawImage(bmp,(w0-s)/2,(h0-s)/2,s,s,0,0,max,max); }
+  else { const sc=Math.min(1,max/Math.max(w0,h0)); c.width=Math.round(w0*sc); c.height=Math.round(h0*sc); x.drawImage(bmp,0,0,c.width,c.height); }
+  if(bmp.close) bmp.close();
+  return new Promise(r=>c.toBlob(r, webpOK()?'image/webp':'image/jpeg', 0.72));
+}
+/* First photo = main profile photo; the rest = extra animation frames (student_photos) */
+async function addFrame(sid, blob){
+  if(!hasMainPhoto(sid)) return setMainPhoto(sid, blob);
+  const id=uid(), n=photoRows(sid).length; const buf=await encBuf(await blob.arrayBuffer()); await idbPut('photo:'+id, buf);
+  const path=`${user.id}/growgrit/${sid}/${id}.bin`;
+  const row={id, user_id:user.id, student_id:sid, storage_path:path, sort:n, deleted:false};
+  DB.photos[id]=row; PHOTO_URL[id]=URL.createObjectURL(blob);
+  if(!user.local){ DB.blobs['photo:'+id]={bucket:BUCKET_PHOTOS, path, key:'photo:'+id, type:'application/octet-stream'}; q('student_photos',id,row,'upsert',{blob:'photo:'+id}); }
+  delete FR_LOADED[sid]; await ensureFrames(sid);
+}
+/* Main profile photo, shown in every Pond app. Kept encrypted on the device, then sent with
+   BFT_STUDENTS.uploadPhoto() at the next sync (it writes beta_students.photo_path). */
+async function setMainPhoto(sid, blob){
+  await idbPut('avatarlocal:'+sid, await encBuf(await blob.arrayBuffer()));
+  DB.mainLocal[sid]=true; if(!user.local) DB.avatarPending[sid]=true;
+  delete FR_LOADED[sid]; await ensureFrames(sid);
+}
+async function uploadFrames(sid, inp){
+  const files=[...inp.files].filter(f=>f.type.startsWith('image/')); inp.value=''; if(!files.length) return;
+  toast(`Adding ${files.length} photo${files.length===1?'':'s'}…`);
+  for(const f of files){ try{ await addFrame(sid, await compressImage(f)); }catch(e){ toast('Could not read '+f.name, true); } }
+  save(); rerender(); if($('#modal').classList.contains('on')) openFrames(sid);
+}
+function deleteFrame(sid, pid){ const p=DB.photos[pid]; if(!p) return; p.deleted=true;
+  if(!user.local){ q('student_photos',pid,p); DB.blobDel.push({bucket:BUCKET_PHOTOS, path:p.storage_path}); delete DB.blobs['photo:'+pid]; }
+  idbDel('photo:'+pid); if(PHOTO_URL[pid]){ URL.revokeObjectURL(PHOTO_URL[pid]); delete PHOTO_URL[pid]; }
+  if(user.local) delete DB.photos[pid]; delete FR_LOADED[sid]; ensureFrames(sid); save(); openFrames(sid); rerender(); }
+async function makeMain(sid, pid){ if(!PHOTO_URL[pid]) return;
+  const blob=await (await fetch(PHOTO_URL[pid])).blob(); await setMainPhoto(sid, blob); save(); toast('Main Pond photo updated'); openFrames(sid); }
+function setPhotoMode(sid, m){ DB.settings.photoMode[sid]=m; saveSettings(); rerender(); if($('#modal').classList.contains('on')) openFrames(sid); }
+function openFrames(sid){
+  const rows=photoRows(sid);
+  openModal(`<h2>📸 ${esc(NM[sid])}</h2>
+    <div class="row wrap" style="align-items:flex-start"><div style="width:220px">${photoBox(sid)}</div>
+    <div class="grow"><div class="seg" style="margin-bottom:10px"><button class="${photoMode(sid)==='loop'?'on':''}" onclick="setPhotoMode('${sid}','loop')">🔁 Loop</button>
+      <button class="${photoMode(sid)==='boomerang'?'on':''}" onclick="setPhotoMode('${sid}','boomerang')">↔️ Boomerang</button></div>
+      <div class="row wrap"><button class="btn go" onclick="openCamera('${sid}')">📷 Camera burst</button>
+      <label class="btn">⬆️ Upload<input type="file" accept="image/*" multiple class="hide" onchange="uploadFrames('${sid}',this)"></label></div>
+      <p class="muted small">The first photo is the main Pond photo (every app). Later photos are extra animation frames.</p></div></div>
+    <h3 style="margin-top:14px">Main photo ${hasMainPhoto(sid)?'✓':'— none yet'} · ${rows.length} extra frame${rows.length===1?'':'s'}</h3>
+    <div class="row wrap">${AVATAR_URL[sid]?`<div style="width:96px;text-align:center"><img src="${AVATAR_URL[sid]}" style="width:96px;height:96px;object-fit:cover;border-radius:10px;border:4px solid var(--lime)"><div class="small"><b>Main</b></div></div>`:''}
+      ${rows.map(p=>`<div style="position:relative;width:96px;text-align:center"><img src="${PHOTO_URL[p.id]||''}" style="width:96px;height:96px;object-fit:cover;border-radius:10px;background:var(--soft)">
+      <button class="mini-undo" style="top:-8px;right:-8px" onclick="deleteFrame('${sid}','${p.id}')" aria-label="Delete frame">✕</button>
+      <button class="btn" style="min-height:44px;padding:0 8px;margin-top:4px;font-size:.7em" onclick="makeMain('${sid}','${p.id}')">⭐ Main</button></div>`).join('')}</div>
+    <div class="row" style="margin-top:14px"><button class="btn go" onclick="closeModal()">Done</button></div>`);
+  ensureFrames(sid);
+}
+/* CAMERA BURST — quick frames straight from the iPad camera */
+let camStream=null;
+async function openCamera(sid){
+  openModal(`<h2>📷 ${esc(NM[sid])}</h2><div id="camera"><video id="cam-v" autoplay playsinline muted></video></div>
+    <p class="muted small" id="cam-n">Hold still… tap Burst for 6 quick frames.</p>
+    <div class="row wrap"><button class="btn go big" onclick="camBurst('${sid}',6)">📸 Burst ×6</button>
+    <button class="btn big" onclick="camBurst('${sid}',1)">Snap 1</button><button class="btn" onclick="camFlip('${sid}')">🔄 Flip</button>
+    <button class="btn" onclick="closeCamera();openFrames('${sid}')">Done</button></div>`);
+  await camStart();
+}
+let camFacing='user';
+async function camStart(){ try{ closeCameraStream(); camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:camFacing,width:{ideal:720}},audio:false});
+  $('#cam-v').srcObject=camStream; }catch(e){ $('#cam-n').textContent='Camera unavailable ('+e.message+'). Use Upload instead.'; } }
+function camFlip(){ camFacing=camFacing==='user'?'environment':'user'; camStart(); }
+function closeCameraStream(){ if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null; } }
+function closeCamera(){ closeCameraStream(); }
+async function camBurst(sid, n){ const v=$('#cam-v'); if(!v||!v.videoWidth) return;
+  for(let i=0;i<n;i++){ const b=await compressImage(v); await addFrame(sid,b); $('#cam-n').textContent=`Frame ${photoRows(sid).length} saved`; if(i<n-1) await new Promise(r=>setTimeout(r,220)); }
+  save(); rerender(); }
+
+/* ============================================================
+   TESTS, SESSIONS, SCORING
+   ============================================================ */
+function customTests(){ return live(DB.tests).sort((a,b)=>(a.sort||0)-(b.sort||0)).map(r=>({id:r.id, name:r.name, type:r.test_type,
+  unit:r.unit||TYPE_INFO[r.test_type]?.unit, dir:r.direction, attempts:r.attempts||1, scoring:r.scoring||'best', config:r.config||{}, icon:'⭐',
+  focus:(r.config&&r.config.focus)||r.name.toLowerCase(), hidden:!!(r.config&&r.config.hidden), custom:true})); }
+function allTests(){ const ov=DB.settings.testOverrides||{};
+  return [...BUILTIN_TESTS.map(t=>Object.assign({},t,ov[t.id]||{})), ...customTests()]; }
+const visibleTests = () => allTests().filter(t=>!t.hidden);
+const getTest = id => allTests().find(t=>t.id===id) || BUILTIN_TESTS[0];
+const sessionId = (cid, period, sy=DB.settings.schoolYear) => hashUuid(`ses|${cid}|${period}|${sy}`);
+function ensureSession(cid, period, date){
+  const id=sessionId(cid,period); let s=DB.sessions[id];
+  if(!s || s.deleted){ s={id, user_id:user.id, class_id:cid, period, school_year:DB.settings.schoolYear, session_date:date||localISO(), deleted:false}; DB.sessions[id]=s; q('fitness_sessions',id,s); }
+  else if(date && s.session_date!==date){ s.session_date=date; q('fitness_sessions',id,s); }
+  return s;
+}
+const resultId = (sesId, sid, tid) => hashUuid(`${sesId}|${sid}|${tid}`);
+function curResult(sid, tid){ const cid=DB.students[sid]?.class_id; const r=DB.results[resultId(sessionId(cid,DB.settings.lastPeriod),sid,tid)]; return r&&!r.deleted?r:null; }
+function scoreOf(t, attempts){
+  const v=(attempts||[]).filter(x=>x!=null && x!=='' && !isNaN(x)).map(Number); if(!v.length) return null;
+  const better = t.dir==='lower' ? Math.min : Math.max; const mean=a=>a.reduce((s,x)=>s+x,0)/a.length;
+  if(t.scoring==='avg') return round2(mean(v));
+  if(t.scoring==='avg2' && v.length>=3){ let best=null; for(let i=0;i<v.length;i++) for(let j=i+1;j<v.length;j++){ const d=Math.abs(v[i]-v[j]), m=mean([v[i],v[j]]);
+      if(!best || d<best.d || (d===best.d && better(m,best.m)===m)) best={d,m}; } return round2(best.m); }
+  if(t.scoring==='avg2') return round2(mean(v));
+  return better(...v);
+}
+const bmiOf = (h,w) => (h>0&&w>0) ? round2(703*w/(h*h)) : null;
+/* results for one student + test in time order */
+function history(sid, tid){ return live(DB.results).filter(r=>r.student_id===sid && r.test_id===tid && r.score!=null)
+  .map(r=>({r, s:DB.sessions[r.session_id]})).filter(x=>x.s)
+  .sort((a,b)=> (a.s.school_year||'').localeCompare(b.s.school_year||'') || PERIODS.indexOf(a.s.period)-PERIODS.indexOf(b.s.period) || (a.s.session_date||'').localeCompare(b.s.session_date||'')); }
+function resultAt(sid, tid, period, sy=DB.settings.schoolYear){ const h=history(sid,tid).filter(x=>x.s.period===period && x.s.school_year===sy); return h.length?h[h.length-1].r:null; }
+
+/* HFZ status: 'in' (Healthy Fitness Zone), 'ni' (Needs Improvement) or null (missing sex/birthdate/standard) */
+function hfzTarget(tid, sid, date){ const std=HFZ[tid]; if(!std) return null; const sx=SX[sid], age=ageAt(sid,date);
+  if(!sx || age==null) return null; return std[sx]?.[String(Math.max(5,Math.min(17,age)))] ?? null; }
+function hfzOf(r){ if(!r || r.score==null) return null; const std=HFZ[r.test_id]; if(!std) return null;
+  const s=DB.sessions[r.session_id]; const tgt=hfzTarget(r.test_id, r.student_id, s?.session_date); if(tgt==null) return null;
+  let v=Number(r.score); if(r.test_id==='pacer' && r.extra?.course_m && r.extra.course_m!==20) v=Math.round(v*r.extra.course_m/20);
+  if(std.kind==='range') return (v>=tgt[0] && v<=tgt[1]) ? 'in' : 'ni'; return v>=tgt ? 'in' : 'ni'; }
+
+/* ============================================================
+   XP — only a student's own improvement, never vs classmates
+   ============================================================ */
+function xpTrack(sid, tid){
+  const t=getTest(tid); const out={per:{}, bonusRid:null}; let best=null;
+  for(const {r} of history(sid,tid)){
+    let xp=XPCFG.firstResultXP;
+    if(best!=null && t.dir!=='none'){ let pct = t.dir==='lower' ? (best-r.score)/best*100 : (r.score-best)/(best||1)*100;
+      if(best===0 && t.dir!=='lower') pct = r.score>0 ? XPCFG.maxImprovementPct : 0;
+      pct=Math.min(XPCFG.maxImprovementPct, Math.max(0, isFinite(pct)?pct:0)); xp += Math.round(pct*XPCFG.improvementMultiplier); }
+    out.per[r.id]=xp;
+    if(t.dir!=='none') best = best==null ? Number(r.score) : (t.dir==='lower'?Math.min:Math.max)(best, Number(r.score));
+    if(!out.bonusRid && hfzOf(r)==='in') out.bonusRid=r.id;
+  }
+  return out;
+}
+function studentXP(sid){ let xp=0; for(const t of allTests()){ const tr=xpTrack(sid,t.id); xp+=Object.values(tr.per).reduce((a,b)=>a+b,0); if(tr.bonusRid) xp+=XPCFG.hfzBonus; } return xp; }
+const levelNames = () => (DB.settings.levelNames && DB.settings.levelNames.length) ? DB.settings.levelNames : XPCFG.names;
+function levelOf(xp){ return Math.floor(xp/XPCFG.xpPerLevel); }
+function levelName(xp){ const n=levelNames(), i=levelOf(xp); return i<n.length ? n[i] : `${n[n.length-1]} ${i-n.length+2}`; }
+const lvlLabel = sid => { const xp=studentXP(sid); return `🐸 ${levelName(xp)} · ${xp} XP`; };
+/* Update the display copy (fitness_results.xp, HFZ bonus included). flushXP() later sends only the
+   difference to the shared ledger with BFT_STUDENTS.award(). */
+function syncXP(sid, tid){
+  const tr=xpTrack(sid,tid);
+  for(const r of Object.values(DB.results).filter(r=>r.student_id===sid && r.test_id===tid)){
+    const xp = r.deleted||r.score==null ? 0 : (tr.per[r.id]||0) + (tr.bonusRid===r.id ? XPCFG.hfzBonus : 0);
+    if(r.xp!==xp){ r.xp=xp; q('fitness_results',r.id,r); }
+  }
+}
+function saveResult(sid, tid, attempts, extra={}){
+  const cid=DB.students[sid].class_id, t=getTest(tid);
+  const ses=ensureSession(cid, DB.settings.lastPeriod);
+  const id=resultId(ses.id, sid, tid);
+  const atts=[]; for(let i=0;i<Math.max(t.attempts, attempts.length);i++){ const v=attempts[i]; atts[i]=(v===''||v==null||isNaN(v))?null:Number(v); }
+  const score = t.type==='bmi' ? bmiOf(extra.height_in, extra.weight_lb) : scoreOf(t, atts);
+  const before=studentXP(sid);
+  const row={id, user_id:user.id, session_id:ses.id, student_id:sid, test_id:tid, attempts:atts, score, extra, xp:0,
+    deleted: score==null, recorded_at:new Date().toISOString()};
+  DB.results[id]=row; q('fitness_results',id,row);
+  syncXP(sid, tid); save();
+  const after=studentXP(sid);
+  if(levelOf(after)>levelOf(before)) setTimeout(()=>levelUp(sid, after), 350);
+  return {gained:after-before, row};
+}
+
+/* ============================================================
+   AUDIO — Web Audio beeps (no copyrighted audio)
+   ============================================================ */
+let _ac=null;
+function AC(){ if(!_ac){ const C=window.AudioContext||window.webkitAudioContext; if(!C) return null; _ac=new C(); } if(_ac.state==='suspended') _ac.resume(); return _ac; }
+document.addEventListener('pointerdown', ()=>AC(), {once:true});
+function tone(freq, dur, type='sine', gain=.5, when=0){ const ac=AC(); if(!ac) return; const t=ac.currentTime+when;
+  const o=ac.createOscillator(), g=ac.createGain(); o.type=type; o.frequency.setValueAtTime(freq,t);
+  g.gain.setValueAtTime(.0001,t); g.gain.exponentialRampToValueAtTime(gain,t+.01); g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+  o.connect(g).connect(ac.destination); o.start(t); o.stop(t+dur+.05); }
+const beepLap = () => tone(990,.22,'square',.35);
+const beepLevel = () => [0,.22,.44].forEach(w=>tone(1320,.15,'square',.4,w));
+const beepGo = () => tone(660,.6,'square',.4);
+function ribbit(){ const ac=AC(); if(!ac) return; for(let k=0;k<2;k++){ const t=ac.currentTime+k*.22;
+  const o=ac.createOscillator(), g=ac.createGain(), f=ac.createBiquadFilter(); o.type='sawtooth';
+  o.frequency.setValueAtTime(190,t); o.frequency.exponentialRampToValueAtTime(90,t+.16); f.type='lowpass'; f.frequency.value=900;
+  g.gain.setValueAtTime(.0001,t); g.gain.exponentialRampToValueAtTime(.6,t+.02); g.gain.exponentialRampToValueAtTime(.0001,t+.18);
+  o.connect(f).connect(g).connect(ac.destination); o.start(t); o.stop(t+.2); } }
+function fanfare(){ ribbit(); [523,659,784,1047].forEach((f,i)=>tone(f,.25,'triangle',.45,.5+i*.12)); }
+
+/* LEVEL UP — confetti + sound */
+function levelUp(sid, xp){
+  $('#levelup-box').innerHTML=`${photoBox(sid)}<h2>LEVEL UP!</h2><p style="font-size:1.6em;font-weight:800">${esc(NM[sid])}</p>
+    <p style="font-size:2em;font-weight:800">🐸 ${esc(levelName(xp))}</p><p class="muted">${xp} XP — growth pays off!</p>`;
+  $('#levelup').classList.add('on'); fanfare(); confetti(); setTimeout(()=>$('#levelup').classList.remove('on'), 4000);
+}
+function confetti(){ const c=$('#confetti'), x=c.getContext('2d'); c.width=innerWidth; c.height=innerHeight;
+  const cols=['#A8D84C','#0E4A2F','#FFD84D','#3B82F6','#EF4444','#FFB3CF']; const P=[...Array(180)].map(()=>({x:Math.random()*c.width,y:-20-Math.random()*c.height*.5,
+    vx:(Math.random()-.5)*6, vy:3+Math.random()*5, r:Math.random()*6.28, vr:(Math.random()-.5)*.3, s:8+Math.random()*10, c:cols[Math.random()*cols.length|0]}));
+  const t0=performance.now(); (function f(now){ x.clearRect(0,0,c.width,c.height);
+    P.forEach(p=>{ p.x+=p.vx; p.y+=p.vy; p.vy+=.08; p.r+=p.vr; x.save(); x.translate(p.x,p.y); x.rotate(p.r); x.fillStyle=p.c; x.fillRect(-p.s/2,-p.s/4,p.s,p.s/2); x.restore(); });
+    if(now-t0<3200) requestAnimationFrame(f); else x.clearRect(0,0,c.width,c.height); })(t0); }
+function xpPop(n){ if(!n) return; const e=$('#xp-pop'); e.textContent=`+${n} XP`; e.classList.remove('show'); void e.offsetWidth; e.classList.add('show'); }
+
+/* ============================================================
+   NAVIGATION + MODAL
+   ============================================================ */
+function go(s){ screen=s; $$('.screen').forEach(e=>e.classList.toggle('on', e.id==='scr-'+s)); $$('#nav button').forEach(b=>b.classList.toggle('on', b.dataset.s===s));
+  if(s!=='laps' && pz.state==='running'){ /* timer keeps running in the background */ }
+  rerender(); window.scrollTo(0,0); }
+function rerender(){ if(!DB) return; renderHeader();
+  ({home:renderHome, record:renderRecord, laps:renderLaps, students:renderStudents, growth:renderGrowth, library:renderLibrary, settings:renderSettings})[screen]?.();
+  if(!$('#sb-drawer').classList.contains('hide')) renderDrawer(); }
+function renderHeader(){ const cid=DB.settings.lastClass, t=getTest(DB.settings.lastTest);
+  $('#ctx').textContent = cid && DB.classes[cid] ? `${CN[cid]} · ${DB.settings.lastPeriod} · ${t.icon} ${t.name}` : 'Pick a class →'; }
+function openModal(html){ $('#modal-box').innerHTML=html; $('#modal').classList.add('on'); }
+function closeModal(){ closeCameraStream(); $('#modal').classList.remove('on'); $('#modal-box').innerHTML=''; }
+
+/* ============================================================
+   SCREEN 1: HOME — class (saved order) + session + test
+   ============================================================ */
+function renderHome(){
+  const el=$('#scr-home'), ids=orderedClasses(), S=DB.settings;
+  if(!ids.length){ el.innerHTML=`<div class="card" style="text-align:center"><h1>Welcome to GrowGrit 🐸</h1>
+    <p>No classes yet. Import a roster or add classes in The Pond.</p><button class="btn go big" onclick="go('students');openImport()">📥 Import roster</button></div>`; return; }
+  if(!S.lastClass || !DB.classes[S.lastClass]) S.lastClass=ids[0];
+  const ses=DB.sessions[sessionId(S.lastClass,S.lastPeriod)], sids=studentsOf(S.lastClass);
+  const done=sids.filter(s=>curResult(s,S.lastTest)).length;
+  el.innerHTML=`
+  <!-- PICK CLASS -->
+  <div class="card"><h2>1 · Class</h2><div class="chips">${ids.map(id=>`<button class="chip ${id===S.lastClass?'on':''}" onclick="pickHome('lastClass','${id}')">
+    ${esc(CN[id])}<small>${GR[id]?'Grade '+esc(GR[id])+' · ':''}${studentsOf(id).length} students</small></button>`).join('')}</div></div>
+  <!-- PICK SESSION -->
+  <div class="card"><h2>2 · Session <span class="muted small">${esc(S.schoolYear)}</span></h2>
+    <div class="row wrap"><div class="seg">${PERIODS.map(p=>`<button class="${p===S.lastPeriod?'on':''}" onclick="pickHome('lastPeriod','${p}')" style="min-height:72px;font-size:1.2em">${p}</button>`).join('')}</div>
+    <label class="row">Date <input type="date" value="${esc(ses?.session_date||localISO())}" onchange="ensureSession(DB.settings.lastClass,DB.settings.lastPeriod,this.value);save()"></label>
+    <span class="muted">${PERIOD_NAMES[S.lastPeriod]}</span></div></div>
+  <!-- PICK TEST -->
+  <div class="card"><h2>3 · Test</h2><div class="chips">${visibleTests().map(t=>`<button class="chip ${t.id===S.lastTest?'on':''}" onclick="pickHome('lastTest','${t.id}')">
+    ${t.icon} ${esc(t.name)}<small>${esc(t.type==='bmi'?'Height + weight':TYPE_INFO[t.type]?.label||'')} · ${t.attempts} attempt${t.attempts>1?'s':''}</small></button>`).join('')}</div></div>
+  <div class="row wrap"><button class="btn go big grow" onclick="go('record')">✏️ Record results</button>
+    <button class="btn lime big grow" onclick="go('laps')">🏃 Lap counter</button></div>
+  <p class="muted" style="margin-top:12px"><b>${done} of ${sids.length}</b> students recorded for ${esc(getTest(S.lastTest).name)} · ${S.lastPeriod}.</p>`;
+}
+function pickHome(k,v){ DB.settings[k]=v; rec.sid=null; saveSettings(); renderHome(); renderHeader(); }
+
+/* ============================================================
+   SCREEN 2: RECORD — fast entry grid + number pad
+   ============================================================ */
+let rec={sid:null, att:0, buf:'', h:'', w:'', field:'h'};
+function needClass(el){ el.innerHTML=`<div class="card" style="text-align:center"><h2>Pick a class first</h2><button class="btn go big" onclick="go('home')">🏠 Home</button></div>`; }
+function renderRecord(){
+  const el=$('#scr-record'), cid=DB.settings.lastClass; if(!cid||!DB.classes[cid]) return needClass(el);
+  const t=getTest(DB.settings.lastTest), sids=studentsOf(cid); if(rec.att>=t.attempts) rec.att=0;
+  el.innerHTML=`
+  <!-- RECORD BAR -->
+  <div class="bar-row"><div class="ctx-big">${t.icon} ${esc(t.name)} <span class="muted">· ${esc(CN[cid])} · ${DB.settings.lastPeriod}</span></div>
+    ${t.type!=='bmi' && t.attempts>1 ? `<div class="seg">${[...Array(t.attempts)].map((_,i)=>`<button class="${i===rec.att?'on':''}" onclick="setAtt(${i})">Attempt ${i+1}</button>`).join('')}</div>`:''}
+    <span class="muted small">Scoring: ${SCORING[t.scoring]||'Best'}</span>${timerWidget(t)}</div>
+  <div class="rec-wrap">
+    <!-- STUDENT TILES -->
+    <div class="tiles" id="rec-tiles">${sids.map(s=>recTile(s,t)).join('') || '<p>No students in this class yet.</p>'}</div>
+    <!-- NUMBER PAD -->
+    <aside class="pad" id="pad"></aside>
+  </div>`;
+  sids.forEach(ensureFrames);
+  if(!sids.length) return $('#pad').remove();
+  if(!rec.sid || !sids.includes(rec.sid)) pickRec(firstMissing(sids,t)||sids[0]); else { loadBuf(); updatePad(); }
+}
+function recTile(sid, t){ const r=curResult(sid,t.id), a=r?.attempts||[], hz=hfzOf(r);
+  return `<button class="tile ${sid===rec.sid?'sel':''} ${r?'done':''}" id="rt-${sid}" onclick="pickRec('${sid}')">${photoBox(sid)}
+    <div class="nm">${esc(NM[sid])}</div>
+    <div class="att">${t.type==='bmi' ? (r?'BMI '+fmtVal(t,r.score):'–') : [...Array(t.attempts)].map((_,i)=>`<span class="${i===rec.att?'cur':''}">${fmtVal(t,a[i])}</span>`).join('')}</div>
+    ${r && t.attempts>1 && t.type!=='bmi' ? `<div class="small muted">Score <b>${fmtVal(t,r.score)}</b></div>`:''}
+    ${hz?`<div class="hfz ${hz}">${hz==='in'?'HFZ ✓':'Needs Improvement'}</div>`:''}</button>`; }
+function firstMissing(sids, t){ return sids.find(s=>{ const r=curResult(s,t.id); return !r || (t.type!=='bmi' && (r.attempts||[])[rec.att]==null); }); }
+function loadBuf(){ const t=getTest(DB.settings.lastTest), r=rec.sid?curResult(rec.sid,t.id):null;
+  if(t.type==='bmi'){ rec.h=r?.extra?.height_in!=null?String(r.extra.height_in):''; rec.w=r?.extra?.weight_lb!=null?String(r.extra.weight_lb):''; rec.field='h'; }
+  else { const v=r?.attempts?.[rec.att]; rec.buf = v==null ? '' : (t.type==='time' ? fmtTime(v).replace(/s$/,'') : String(v)); } }
+function pickRec(sid){ rec.sid=sid; loadBuf(); $$('#rec-tiles .tile').forEach(e=>e.classList.toggle('sel', e.id==='rt-'+sid));
+  updatePad(); $('#rt-'+sid)?.scrollIntoView({block:'nearest',behavior:'smooth'}); }
+function setAtt(i){ rec.att=i; renderRecord(); }
+function updatePad(){
+  const p=$('#pad'); if(!p||!rec.sid) return; const t=getTest(DB.settings.lastTest), sid=rec.sid;
+  const keys=['7','8','9','4','5','6','1','2','3', t.type==='time'?':':'.', '0','⌫'];
+  p.innerHTML=`<div class="pad-who">${photoBox(sid,'sm')}<div><div class="pad-name">${esc(NM[sid])}</div><div class="muted small">${esc(lvlLabel(sid))}</div></div></div>
+  ${t.type==='bmi' ? `<div class="pad-two"><button class="pad-disp ${rec.field==='h'?'on':''}" onclick="rec.field='h';updatePad()"><small>Height (in)</small><b>${esc(rec.h||'–')}</b></button>
+     <button class="pad-disp ${rec.field==='w'?'on':''}" onclick="rec.field='w';updatePad()"><small>Weight (lb)</small><b>${esc(rec.w||'–')}</b></button></div>
+     <p class="small muted" style="margin:6px 0 0">BMI ${bmiOf(parseFloat(rec.h),parseFloat(rec.w))??'–'} · record privately</p>`
+   : `<div class="pad-disp on"><small>Attempt ${rec.att+1} · ${esc(t.type==='time'?'m:ss':t.unit)}</small><b>${esc(rec.buf||'–')}</b></div>`}
+  <div class="keys">${keys.map(k=>`<button onclick="padKey('${k}')">${k}</button>`).join('')}</div>
+  <div class="pad-act"><button class="btn" onclick="padClear()">Clear</button><button class="btn" onclick="padNext(1)">Skip →</button>
+    <button class="btn go big" onclick="padSave()">Save ✓</button></div>`;
+  ensureFrames(sid);
+}
+function padKey(k){ const t=getTest(DB.settings.lastTest); const f=t.type==='bmi'?rec.field:'buf'; let v=rec[f];
+  if(k==='⌫') v=v.slice(0,-1); else if(v.length<7){ if((k==='.'&&v.includes('.'))||(k===':'&&v.includes(':'))) return; v+=k; }
+  rec[f]=v; updatePad(); }
+function padNext(dir){ const sids=studentsOf(DB.settings.lastClass); const i=sids.indexOf(rec.sid); const n=sids[(i+dir+sids.length)%sids.length]; if(n) pickRec(n); }
+function padSave(){
+  const t=getTest(DB.settings.lastTest), sid=rec.sid; if(!sid) return; const r=curResult(sid,t.id); let res;
+  if(t.type==='bmi'){ const h=parseFloat(rec.h), w=parseFloat(rec.w);
+    if(!(h>=30&&h<=90&&w>=30&&w<=500)) return toast('Check height (30–90 in) and weight (30–500 lb)', true);
+    res=saveResult(sid,t.id,[bmiOf(h,w)],{height_in:h, weight_lb:w}); }
+  else { const v= t.type==='time' ? parseTime(rec.buf) : parseFloat(rec.buf); if(rec.buf===''||isNaN(v)) return toast('Type a number first', true);
+    const atts=[...(r?.attempts||[])]; atts[rec.att]=v; res=saveResult(sid,t.id,atts,r?.extra||{}); }
+  xpPop(res.gained); tone(880,.08,'sine',.25);
+  const tile=$('#rt-'+sid); if(tile) tile.outerHTML=recTile(sid,t);
+  const sids=studentsOf(DB.settings.lastClass); const i=sids.indexOf(sid);
+  const next=sids.slice(i+1).find(s=>firstMissing([s],t)) || firstMissing(sids,t);
+  if(next) pickRec(next); else { pickRec(sid); toast('Everyone has a result for this attempt 🎉'); }
+}
+function padClear(){ const t=getTest(DB.settings.lastTest), sid=rec.sid, r=curResult(sid,t.id); if(!r){ rec.buf=rec.h=rec.w=''; return updatePad(); }
+  if(t.type==='bmi') saveResult(sid,t.id,[],{}); else { const a=[...(r.attempts||[])]; a[rec.att]=null; saveResult(sid,t.id,a,r.extra||{}); }
+  rec.buf=rec.h=rec.w=''; const tile=$('#rt-'+sid); if(tile) tile.outerHTML=recTile(sid,t); pickRec(sid); }
+document.addEventListener('keydown', e=>{ if(screen!=='record' || $('#modal').classList.contains('on') || /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName)) return;
+  if(/^[0-9.:]$/.test(e.key)) padKey(e.key); else if(e.key==='Backspace') padKey('⌫'); else if(e.key==='Enter') padSave();
+  else if(e.key==='ArrowRight') padNext(1); else if(e.key==='ArrowLeft') padNext(-1); });
+/* TEST TIMERS on the record screen (timed reps countdown, stopwatch for time tests) */
+let rt={t:null, start:0};
+function timerWidget(t){ if(t.type==='timed_reps'){ const s=t.config?.seconds||60; return `<button class="btn lime" id="rtimer" onclick="recCountdown(${s})">⏱ ${s}s</button>`; }
+  if(t.type==='time') return `<button class="btn lime" id="rtimer" onclick="recStopwatch()">⏱ Start</button>`; return ''; }
+function recCountdown(sec){ const b=$('#rtimer'); if(rt.t){ clearInterval(rt.t); rt.t=null; b.textContent=`⏱ ${sec}s`; return; }
+  beepGo(); rt.start=performance.now(); rt.t=setInterval(()=>{ const left=Math.max(0,sec-(performance.now()-rt.start)/1000); const bb=$('#rtimer'); if(bb) bb.textContent=`⏹ ${Math.ceil(left)}s`;
+    if(left<=0){ clearInterval(rt.t); rt.t=null; beepLevel(); if(bb) bb.textContent=`⏱ ${sec}s`; } },100); }
+function recStopwatch(){ const b=$('#rtimer'); if(rt.t){ clearInterval(rt.t); rt.t=null; const s=(performance.now()-rt.start)/1000; rec.buf=String(round2(s)); updatePad(); b.textContent='⏱ Start'; return; }
+  beepGo(); rt.start=performance.now(); rt.t=setInterval(()=>{ const bb=$('#rtimer'); if(bb) bb.textContent='⏹ '+fmtTime((performance.now()-rt.start)/1000); },100); }
+
+/* ============================================================
+   SCREEN 3: LAP COUNTER + PACER BEEP TIMER
+   ============================================================ */
+function lapDist(){ const c=DB.settings.course; return c.mode==='15'?15 : c.mode==='20'?20 : c.mode==='loop'? Number(c.loop)||400 : Number(c.custom)||20; }
+const lapKey = () => `gg_lap_${user.id}_${DB.settings.lastClass}`;
+let lapRun=null;
+function loadLapRun(){ let r=null; try{ r=JSON.parse(localStorage.getItem(lapKey())); }catch{}
+  lapRun = r || {counts:{}, out:{}, undo:[], test:'pacer', att:0}; }
+function saveLapRun(){ try{ localStorage.setItem(lapKey(), JSON.stringify(lapRun)); }catch{} }
+function renderLaps(){
+  const el=$('#scr-laps'), cid=DB.settings.lastClass; if(!cid||!DB.classes[cid]) return needClass(el);
+  loadLapRun(); const sids=studentsOf(cid), c=DB.settings.course, d=lapDist();
+  const lapTests=visibleTests().filter(t=>t.type==='laps'||t.type==='distance'); if(!lapTests.find(t=>t.id===lapRun.test)) lapRun.test=lapTests[0]?.id||'pacer';
+  const lt=getTest(lapRun.test);
+  el.innerHTML=`
+  <!-- PACER BEEP TIMER -->
+  <div class="card">
+    <div class="pacer-big"><div><small>LEVEL</small><b id="pz-level">1</b></div><div><small>LAP</small><b id="pz-lap">0</b><small id="pz-of"></small></div>
+      <div><small>TIME</small><b id="pz-clock">0:00</b></div><div><small>BEEP LAPS</small><b id="pz-total">0</b></div></div>
+    <div class="pz-bar"><i id="pz-fill"></i></div>
+    <div class="row wrap"><button class="btn go big" onclick="pzStart()">▶ Start</button><button class="btn big" onclick="pzPause()">⏸ Pause</button>
+      <button class="btn warn big" onclick="pzStop()">⏹ Stop</button>
+      <div class="seg"><button class="${DB.settings.cadence&&c.mode!=='loop'?'on':''}" onclick="setCadence(true)">🔔 PACER beeps</button><button class="${!DB.settings.cadence||c.mode==='loop'?'on':''}" onclick="setCadence(false)">⏱ Stopwatch only</button></div></div>
+  </div>
+  <!-- COURSE SETUP -->
+  <div class="card row wrap"><b>Course</b>
+    <div class="seg">${[['15','15 m'],['20','20 m'],['custom','Custom runway'],['loop','Loop / Oval']].map(([m,l])=>`<button class="${c.mode===m?'on':''}" onclick="setCourse('${m}')">${l}</button>`).join('')}</div>
+    ${c.mode==='custom'?`<label class="row">Runway <input type="number" min="5" max="400" value="${esc(c.custom)}" style="width:110px" onchange="setCourseVal('custom',this.value)"> m</label>`:''}
+    ${c.mode==='loop'?`<label class="row">Loop <input type="number" min="50" max="5000" value="${esc(c.loop)}" style="width:120px" onchange="setCourseVal('loop',this.value)"> m</label>`:''}
+    <span>1 lap = <b>${d} m</b> · Class total <b id="lap-total">0 m</b></span></div>
+  <!-- LAP SAVE BAR -->
+  <div class="row wrap" style="margin-bottom:14px">
+    <label class="row">Save as <select onchange="lapRun.test=this.value;saveLapRun();renderLaps()">${lapTests.map(t=>opt(t.id,t.name,lapRun.test)).join('')}</select></label>
+    ${lt.attempts>1?`<div class="seg">${[...Array(lt.attempts)].map((_,i)=>`<button class="${i===lapRun.att?'on':''}" onclick="lapRun.att=${i};saveLapRun();renderLaps()">Try ${i+1}</button>`).join('')}</div>`:''}
+    <button class="btn go big" onclick="saveLaps()">💾 Save laps</button><button class="btn big" onclick="lapGlobalUndo()">↩ Undo</button>
+    <button class="btn warn" onclick="lapReset()">Reset</button><span class="muted small">Tap = +1 lap · Hold = student out</span></div>
+  <!-- LAP TILES -->
+  <div class="tiles lap-tiles" id="lap-tiles">${sids.map(lapTile).join('')||'<p>No students yet.</p>'}</div>`;
+  sids.forEach(ensureFrames); bindLapTiles(); updateLapTotal(); pzPaint();
+}
+function lapTile(sid){ const n=lapRun.counts[sid]||0, out=lapRun.out[sid]!=null;
+  return `<div class="tile lap ${out?'out':''}" id="lt-${sid}" data-sid="${sid}">${photoBox(sid)}<div class="nm">${esc(NM[sid])}</div>
+    <div class="laps" id="ln-${sid}">${n}</div><div class="dist" id="ld-${sid}">${(n*lapDist()).toLocaleString()} m</div>
+    ${out?`<div class="outtag">OUT</div>`:''}<button class="mini-undo" data-undo="${sid}" aria-label="Undo one lap">−1</button></div>`; }
+function bindLapTiles(){ const g=$('#lap-tiles'); if(!g) return; let hold=null, fired=false, cur=null;
+  const clear=()=>{ clearTimeout(hold); hold=null; if(cur) cur.classList.remove('holding'); };
+  g.addEventListener('contextmenu', e=>e.preventDefault());
+  g.addEventListener('pointerdown', e=>{ const u=e.target.closest('[data-undo]'); if(u){ e.stopPropagation(); lapUndo(u.dataset.undo); return; }
+    const tile=e.target.closest('.tile.lap'); if(!tile) return; cur=tile; fired=false; tile.classList.add('holding');
+    hold=setTimeout(()=>{ fired=true; tile.classList.remove('holding'); toggleOut(tile.dataset.sid); }, 650); });
+  g.addEventListener('pointerup', e=>{ if(e.target.closest('[data-undo]')) return; const tile=e.target.closest('.tile.lap'); const was=fired; clear();
+    if(tile && tile===cur && !was) addLap(tile.dataset.sid); cur=null; });
+  g.addEventListener('pointercancel', ()=>{ clear(); cur=null; }); g.addEventListener('pointerleave', ()=>{ clear(); cur=null; });
+}
+function updateLapTile(sid){ const t=$('#lt-'+sid); if(!t) return; const n=lapRun.counts[sid]||0;
+  $('#ln-'+sid).textContent=n; $('#ld-'+sid).textContent=(n*lapDist()).toLocaleString()+' m';
+  const out=lapRun.out[sid]!=null; t.classList.toggle('out',out); const tag=t.querySelector('.outtag');
+  if(out&&!tag) t.insertAdjacentHTML('beforeend','<div class="outtag">OUT</div>'); if(!out&&tag) tag.remove(); updateLapTotal(); }
+function updateLapTotal(){ const tot=Object.values(lapRun.counts).reduce((a,b)=>a+b,0)*lapDist(); const e=$('#lap-total'); if(e) e.textContent=tot.toLocaleString()+' m'; }
+function addLap(sid){ if(lapRun.out[sid]!=null) return; lapRun.counts[sid]=(lapRun.counts[sid]||0)+1; lapRun.undo.push({t:'lap',sid});
+  saveLapRun(); updateLapTile(sid); const t=$('#lt-'+sid); t.classList.add('flash'); setTimeout(()=>t.classList.remove('flash'),150); }
+function lapUndo(sid){ for(let i=lapRun.undo.length-1;i>=0;i--) if(lapRun.undo[i].sid===sid && lapRun.undo[i].t==='lap'){ lapRun.undo.splice(i,1); break; }
+  if((lapRun.counts[sid]||0)>0) lapRun.counts[sid]--; saveLapRun(); updateLapTile(sid); }
+function lapGlobalUndo(){ const u=lapRun.undo.pop(); if(!u) return toast('Nothing to undo');
+  if(u.t==='lap' && lapRun.counts[u.sid]>0) lapRun.counts[u.sid]--; else if(u.t==='out') delete lapRun.out[u.sid]; else if(u.t==='in') lapRun.out[u.sid]=lapRun.counts[u.sid]||0;
+  saveLapRun(); updateLapTile(u.sid); toast(`Undid ${u.t==='lap'?'a lap':'out'} for ${NM[u.sid]}`); }
+function lapValue(sid){ const n=lapRun.counts[sid]||0; return getTest(lapRun.test).type==='distance' ? n*lapDist() : n; }
+function saveLapResult(sid){ const t=getTest(lapRun.test), r=curResult(sid,t.id), atts=[...(r?.attempts||[])]; atts[lapRun.att]=lapValue(sid);
+  return saveResult(sid, t.id, atts, {course_m:lapDist(), course_mode:DB.settings.course.mode}); }
+function toggleOut(sid){ if(lapRun.out[sid]!=null){ delete lapRun.out[sid]; lapRun.undo.push({t:'in',sid}); toast(`${NM[sid]} is back in`); }
+  else { lapRun.out[sid]=lapRun.counts[sid]||0; lapRun.undo.push({t:'out',sid}); const res=saveLapResult(sid); xpPop(res.gained);
+    toast(`${NM[sid]} out at ${lapRun.counts[sid]||0} laps — saved`); }
+  if(navigator.vibrate) navigator.vibrate(60); saveLapRun(); updateLapTile(sid); }
+function saveLaps(){ const sids=studentsOf(DB.settings.lastClass).filter(s=>(lapRun.counts[s]||0)>0 || lapRun.out[s]!=null);
+  if(!sids.length) return toast('No laps to save yet', true); let xp=0; sids.forEach(s=>xp+=saveLapResult(s).gained); xpPop(xp);
+  toast(`Saved ${sids.length} student${sids.length===1?'':'s'} to ${getTest(lapRun.test).name}`); }
+function lapReset(){ if(!confirm('Clear all lap counts on this screen? (Saved results are kept.)')) return; lapRun.counts={}; lapRun.out={}; lapRun.undo=[]; saveLapRun(); renderLaps(); }
+function setCourse(m){ DB.settings.course.mode=m; saveSettings(); pzBuild(); renderLaps(); }
+function setCourseVal(k,v){ DB.settings.course[k]=Math.max(1,Number(v)||1); saveSettings(); pzBuild(); renderLaps(); }
+function setCadence(on){ DB.settings.cadence=on; saveSettings(); renderLaps(); }
+
+/* PACER TIMER ENGINE — speed +0.5 km/h per level; triple beep at each level change */
+const pz={state:'idle', acc:0, start:0, t:null, laps:[], next:0, wake:null};
+function pzBuild(){ const d=lapDist(); pz.laps=[]; let t=0;
+  for(let L=1;L<=21;L++){ const lt=d/(pacerSpeed(L)/3.6); const n= d===20 ? PACER_LAPS_20M[L-1] : Math.max(1,Math.ceil(60/lt));
+    for(let i=1;i<=n;i++){ t+=lt; pz.laps.push({t,L,i,n}); } } }
+const pzCadence = () => DB.settings.cadence && DB.settings.course.mode!=='loop';
+const pzElapsed = () => pz.acc + (pz.state==='running' ? (performance.now()-pz.start)/1000 : 0);
+function pzStart(){ if(pz.state==='running') return; if(!pz.laps.length) pzBuild(); AC();
+  const go=()=>{ pz.start=performance.now(); pz.state='running'; pz.t=setInterval(pzTick,40);
+    if(navigator.wakeLock) navigator.wakeLock.request('screen').then(w=>pz.wake=w).catch(()=>{}); };
+  if(pz.state==='idle'){ pz.state='count'; let n=3; const cd=()=>{ if(pz.state!=='count') return; const e=$('#pz-clock'); if(n>0){ if(e) e.textContent=n; tone(520,.15,'square',.35); n--; setTimeout(cd,1000); } else { beepGo(); go(); } }; cd(); }
+  else go(); }
+function pzPause(){ if(pz.state!=='running') return; pz.acc=pzElapsed(); pz.state='paused'; clearInterval(pz.t); pzPaint(); }
+function pzStop(){ clearInterval(pz.t); pz.state='idle'; pz.acc=0; pz.next=0; pz.wake?.release?.(); pz.wake=null; pzPaint(); }
+function pzTick(){ const e=pzElapsed();
+  if(pzCadence()){ while(pz.next<pz.laps.length && pz.laps[pz.next].t<=e){ const l=pz.laps[pz.next]; (l.i===l.n?beepLevel:beepLap)(); pz.next++; }
+    if(pz.next>=pz.laps.length){ pzStop(); toast('PACER complete — every level finished!'); } }
+  pzPaint(); }
+function pzPaint(){ const e=pzElapsed(), m=Math.floor(e/60), s=Math.floor(e%60); const set=(id,v)=>{ const x=$('#'+id); if(x) x.textContent=v; };
+  if(pz.state!=='count') set('pz-clock', `${m}:${String(s).padStart(2,'0')}`);
+  if(!pzCadence()){ set('pz-level','—'); set('pz-lap','—'); set('pz-of',''); set('pz-total','—'); const f=$('#pz-fill'); if(f) f.style.width='0'; return; }
+  if(!pz.laps.length) pzBuild(); const cur=pz.laps[Math.min(pz.next,pz.laps.length-1)], prevT=pz.next?pz.laps[pz.next-1].t:0;
+  set('pz-level',cur.L); set('pz-lap',cur.i); set('pz-of','of '+cur.n); set('pz-total',pz.next);
+  const f=$('#pz-fill'); if(f) f.style.width=Math.min(100,Math.max(0,(e-prevT)/(cur.t-prevT)*100))+'%'; }
+
+/* ============================================================
+   SCREEN 4: STUDENTS — roster, photos, slideshow, bulk edit
+   ============================================================ */
+let stuClass=null, stuSel=new Set();
+function renderStudents(){
+  const el=$('#scr-students'), ids=orderedClasses();
+  if(!stuClass || !DB.classes[stuClass]) stuClass=DB.settings.lastClass&&DB.classes[DB.settings.lastClass]?DB.settings.lastClass:ids[0];
+  const sids=stuClass?studentsOf(stuClass):[];
+  el.innerHTML=`
+  <div class="row wrap" style="margin-bottom:14px"><h1 class="grow" style="margin:0">Students</h1>
+    <button class="btn go" onclick="openImport()">📥 Import roster</button><button class="btn" onclick="promptClass()">＋ Class</button></div>
+  <!-- ROSTER: CLASS ORDER + BULK GRADE -->
+  <div class="card"><h2>Classes <span class="muted small">(order shown on Home)</span></h2>
+    ${ids.map((id,i)=>`<div class="class-row"><button class="btn" onclick="moveClass('${id}',-1)" ${i?'':'disabled'} aria-label="Move up">▲</button>
+      <button class="btn" onclick="moveClass('${id}',1)" ${i<ids.length-1?'':'disabled'} aria-label="Move down">▼</button>
+      <span class="nm">${esc(CN[id])} <span class="muted small">${studentsOf(id).length} students</span></span>
+      <label class="row small">Grade <select onchange="setGrade('${id}',this.value)">${opt('','—',GR[id])}${GRADES.map(g=>opt(g,g,GR[id])).join('')}</select></label>
+      <button class="btn ${id===stuClass?'go':''}" onclick="stuClass='${id}';stuSel.clear();renderStudents()">Open</button></div>`).join('') || '<p class="muted">No classes yet.</p>'}
+    <p class="muted small">Classes and students come from The Pond roster. Rename or archive them in The Pond.</p></div>
+  ${stuClass?`
+  <!-- ROSTER: STUDENTS -->
+  <div class="card"><div class="row wrap"><h2 class="grow" style="margin:0">${esc(CN[stuClass])}</h2>
+      <button class="btn" onclick="promptStudent()">＋ Student</button>
+      <button class="btn" onclick="stuSelAll()">☑ Select all</button>
+      <span class="small">Selected (${stuSel.size}):</span><button class="btn" onclick="bulkSex('M')">Set M</button><button class="btn" onclick="bulkSex('F')">Set F</button>
+      <label class="row small">Birthdate <input type="date" onchange="bulkBday(this.value)"></label></div>
+    <div class="row wrap" style="margin:10px 0"><span class="small">Default slideshow:</span>
+      <div class="seg"><button class="${DB.settings.defaultPhotoMode==='loop'?'on':''}" onclick="DB.settings.defaultPhotoMode='loop';saveSettings();renderStudents()">🔁 Loop</button>
+      <button class="${DB.settings.defaultPhotoMode==='boomerang'?'on':''}" onclick="DB.settings.defaultPhotoMode='boomerang';saveSettings();renderStudents()">↔️ Boomerang</button></div></div>
+    ${sids.map(s=>`<div class="srow"><input type="checkbox" ${stuSel.has(s)?'checked':''} onchange="this.checked?stuSel.add('${s}'):stuSel.delete('${s}');renderStudents()" aria-label="Select">
+      <button class="ph-btn" onclick="openFrames('${s}')" aria-label="Photos">${photoBox(s)}</button>
+      <div><b>${esc(NM[s])}</b><div class="small muted">${esc(lvlLabel(s))} · ${hasMainPhoto(s)?'main photo':'no photo'}${photoRows(s).length?` + ${photoRows(s).length} frame${photoRows(s).length===1?'':'s'}`:''}</div></div>
+      <div class="seg">${['M','F'].map(v=>`<button class="${SX[s]===v?'on':''}" onclick="setSex('${s}','${v}');renderStudents()">${v}</button>`).join('')}</div>
+      <label class="row small"><input type="date" value="${esc(BD[s])}" onchange="setBday('${s}',this.value)"> Age <b id="age-${s}">${ageAt(s)??'—'}</b></label>
+      <div class="row"><button class="btn" onclick="openCamera('${s}')" aria-label="Camera">📷</button>
+        <label class="btn" aria-label="Upload photos">⬆️<input type="file" accept="image/*" multiple class="hide" onchange="uploadFrames('${s}',this)"></label>
+        <button class="btn" onclick="setPhotoMode('${s}','${photoMode(s)==='loop'?'boomerang':'loop'}')" title="Loop / Boomerang">${photoMode(s)==='loop'?'🔁':'↔️'}</button></div></div>`).join('') || '<p class="muted">No students yet.</p>'}
+  </div>`:''}`;
+  sids.forEach(ensureFrames);
+}
+function stuSelAll(){ const s=studentsOf(stuClass); if(stuSel.size===s.length) stuSel.clear(); else s.forEach(x=>stuSel.add(x)); renderStudents(); }
+async function bulkSex(v){ if(!stuSel.size) return toast('Select students first', true); for(const s of stuSel) await setSex(s,v); renderStudents(); }
+async function bulkBday(v){ if(!stuSel.size) return toast('Select students first', true); for(const s of stuSel) await setBday(s,v); renderStudents(); }
+function promptClass(){ openModal(`<h2>＋ New class</h2><input type="text" id="nc-name" placeholder="Period 3" style="width:100%">
+  <label class="row" style="margin:10px 0">Grade <select id="nc-grade">${opt('','—','')}${GRADES.map(g=>opt(g,g,'')).join('')}</select></label>
+  <div class="row"><button class="btn go" onclick="(async()=>{const n=$('#nc-name').value.trim(); if(!n) return; stuClass=await addClass(n,$('#nc-grade').value); save(); closeModal(); renderStudents();})()">Add class</button>
+  <button class="btn" onclick="closeModal()">Cancel</button></div>`); setTimeout(()=>$('#nc-name').focus(),50); }
+function promptStudent(){ openModal(`<h2>＋ Student in ${esc(CN[stuClass])}</h2><p class="muted small">One name per line to add several.</p>
+  <textarea id="ns-name" placeholder="John Smith" style="font-family:inherit;font-size:1em"></textarea>
+  <div class="row" style="margin-top:10px"><button class="btn go" onclick="(async()=>{for(const n of $('#ns-name').value.split('\\n')) await addStudent(stuClass,n); save(); closeModal(); renderStudents();})()">Add</button>
+  <button class="btn" onclick="closeModal()">Cancel</button></div>`); setTimeout(()=>$('#ns-name').focus(),50); }
+
+/* ============================================================
+   SCREEN 5: GROWTH — charts, HFZ, recommendations, exports
+   ============================================================ */
+let gTab='student', gClass=null, gSid=null, gTest='pacer';
+function pctChange(t, a, b){ if(a==null||b==null||t.dir==='none'||!a) return null; return round2(t.dir==='lower' ? (a-b)/a*100 : (b-a)/a*100); }
+const latestPeriodResult = (sid,tid) => resultAt(sid,tid,'EOY')||resultAt(sid,tid,'MOY')||resultAt(sid,tid,'BOY');
+function recsFor(sid){ const out=[];
+  for(const t of visibleTests()){ const h=history(sid,t.id); if(!h.length) continue; const last=h[h.length-1].r, hz=hfzOf(last);
+    if(hz==='ni') out.push(`<b>${t.icon} ${esc(t.name)}:</b> ${esc(FOCUS_TIPS[t.focus]||'Focus on '+t.focus+'.')}`);
+    if(h.length>1 && t.dir!=='none'){ const p=pctChange(t,h[h.length-2].r.score,last.score); if(p!=null && p<-5) out.push(`<b>${t.icon} ${esc(t.name)}</b> dipped ${Math.abs(p)}% since ${h[h.length-2].s.period} — revisit technique and practice.`); } }
+  if(!out.length) out.push(Object.values(DB.results).some(r=>r.student_id===sid&&!r.deleted) ? 'Every tested area is on track — keep growing! 🐸' : 'No results yet.');
+  return out; }
+function lineChart(t, sid){
+  const vals=PERIODS.map(p=>{ const r=resultAt(sid,t.id,p); return r?Number(r.score):null; }), have=vals.filter(v=>v!=null);
+  if(!have.length) return `<div class="muted" style="padding:30px;text-align:center">No ${esc(t.name)} results yet</div>`;
+  const last=latestPeriodResult(sid,t.id), tgt=hfzTarget(t.id, sid, DB.sessions[last?.session_id]?.session_date);
+  const tv=tgt==null?[]:(Array.isArray(tgt)?tgt:[tgt]);
+  let lo=Math.min(...have,...tv), hi=Math.max(...have,...tv); if(lo===hi){ lo-=1; hi+=1; } const pad=(hi-lo)*.15; lo-=pad; hi+=pad;
+  const W=340,H=180,L=44,R=16,T=18,B=34, x=i=>L+i*(W-L-R)/2, y=v=>T+(1-(v-lo)/(hi-lo))*(H-T-B);
+  let path=''; vals.forEach((v,i)=>{ if(v==null) return; path+=(path?' L':'M')+x(i)+' '+y(v); });
+  const band = Array.isArray(tgt) ? `<rect class="band" x="${L}" width="${W-L-R}" y="${y(tgt[1])}" height="${y(tgt[0])-y(tgt[1])}"/>` : '';
+  const line = tgt!=null && !Array.isArray(tgt) ? `<line class="tgt" x1="${L}" x2="${W-R}" y1="${y(tgt)}" y2="${y(tgt)}"/><text x="${W-R}" y="${y(tgt)-6}" text-anchor="end" font-size="12">HFZ ${tgt}</text>` : '';
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(t.name)} growth">${band}${line}
+    <path class="ln" d="${path}"/>${vals.map((v,i)=>v==null?'':`<circle class="dot" cx="${x(i)}" cy="${y(v)}" r="7"/><text x="${x(i)}" y="${y(v)-12}" text-anchor="middle" font-size="15">${fmtVal(t,v)}</text>`).join('')}
+    ${PERIODS.map((p,i)=>`<text x="${x(i)}" y="${H-10}" text-anchor="middle" font-size="14">${p}</text>`).join('')}</svg>`;
+}
+function renderGrowth(){
+  const el=$('#scr-growth'), ids=orderedClasses(); if(!ids.length) return needClass(el);
+  if(!gClass||!DB.classes[gClass]) gClass=DB.settings.lastClass&&DB.classes[DB.settings.lastClass]?DB.settings.lastClass:ids[0];
+  const sids=studentsOf(gClass); if(!gSid||!sids.includes(gSid)) gSid=sids[0]; const tests=visibleTests(); if(!tests.find(t=>t.id===gTest)) gTest=tests[0].id;
+  let body='';
+  if(gTab==='student' && gSid){ const xp=studentXP(gSid);
+    body=`<div class="card row wrap"><div style="width:140px">${photoBox(gSid)}</div><div class="grow"><h2>${esc(NM[gSid])}</h2>
+      <p style="font-size:1.3em;font-weight:800">🐸 ${esc(levelName(xp))} · ${xp} XP</p><p class="muted small">${SX[gSid]||'Sex ?'} · Age ${ageAt(gSid)??'? (add birthdate for HFZ)'}</p></div>
+      <div class="grow"><h3>Recommendations</h3><ul class="rec-list">${recsFor(gSid).map(r=>`<li>${r}</li>`).join('')}</ul></div></div>
+      <!-- GROWTH CHARTS -->
+      <div class="charts">${tests.map(t=>{ const b=resultAt(gSid,t.id,'BOY'), e=latestPeriodResult(gSid,t.id), pc=b&&e&&b!==e?pctChange(t,b.score,e.score):null, hz=hfzOf(e);
+        return `<div class="card chart"><div class="row"><h3 class="grow">${t.icon} ${esc(t.name)}</h3>${hz?`<span class="hfz ${hz}">${hz==='in'?'HFZ ✓':'NI'}</span>`:''}</div>
+        ${lineChart(t,gSid)}${pc!=null?`<p class="small"><b>${pc>=0?'+':''}${pc}%</b> growth since BOY</p>`:''}</div>`; }).join('')}</div>`; }
+  else if(gTab==='class'){
+    const rows=sids.map(s=>`<tr><td><b>${esc(NM[s])}</b></td>${tests.map(t=>{ const b=resultAt(s,t.id,'BOY'), e=latestPeriodResult(s,t.id), pc=b&&e&&b!==e?pctChange(t,b.score,e.score):null, hz=hfzOf(e);
+      return `<td>${b?fmtVal(t,b.score):'–'} → ${e&&e!==b?fmtVal(t,e.score):'–'}${pc!=null?` <b style="color:${pc>=0?'var(--good)':'var(--bad)'}">${pc>=0?'+':''}${pc}%</b>`:''}${hz?` <span class="hfz ${hz}">${hz==='in'?'✓':'NI'}</span>`:''}</td>`; }).join('')}</tr>`).join('');
+    const focus=tests.filter(t=>HFZ[t.id]).map(t=>{ const st=sids.map(s=>hfzOf(latestPeriodResult(s,t.id))).filter(Boolean); return {t, n:st.length, pct:st.length?Math.round(st.filter(x=>x==='in').length/st.length*100):null}; })
+      .filter(x=>x.n).sort((a,b)=>a.pct-b.pct);
+    body=`<div class="card"><h3>Class recommendations</h3><ul class="rec-list">${focus.length? focus.slice(0,2).map(f=>`<li><b>${f.t.icon} ${esc(f.t.name)}:</b> ${f.pct}% in HFZ — ${esc(FOCUS_TIPS[f.t.focus]||'focus on '+f.t.focus)}</li>`).join('') : '<li>Add sex + birthdate and record results to see HFZ focus areas.</li>'}</ul></div>
+      <div class="card scroll-x"><table class="tbl"><tr><th>Student</th>${tests.map(t=>`<th>${t.icon} ${esc(t.name)}<br><span class="small">BOY → latest</span></th>`).join('')}</tr>${rows}</table></div>`; }
+  else { const t=getTest(gTest); const max=Math.max(1,...ids.flatMap(c=>PERIODS.map(p=>classAvg(c,t,p)||0)));
+    body=`<div class="card scroll-x"><table class="tbl"><tr><th>Class</th>${PERIODS.map(p=>`<th>${p} avg</th>`).join('')}<th>Growth</th><th>HFZ (latest)</th></tr>
+      ${ids.map(c=>{ const av=PERIODS.map(p=>classAvg(c,t,p)); const b=av[0], e=av[2]??av[1]; const pc=b!=null&&e!=null?pctChange(t,b,e):null;
+        const st=studentsOf(c).map(s=>hfzOf(latestPeriodResult(s,t.id))).filter(Boolean);
+        return `<tr><td><b>${esc(CN[c])}</b></td>${av.map(v=>`<td><div class="bar-cell"><i style="width:${v==null?0:Math.max(4,v/max*140)}px"></i>${v==null?'–':fmtVal(t,v)}</div></td>`).join('')}
+        <td>${pc==null?'–':`<b>${pc>=0?'+':''}${pc}%</b>`}</td><td>${st.length?Math.round(st.filter(x=>x==='in').length/st.length*100)+'%':'–'}</td></tr>`; }).join('')}</table></div>`; }
+  el.innerHTML=`<div class="row wrap" style="margin-bottom:14px"><h1 class="grow" style="margin:0">Growth</h1>
+    <div class="seg">${[['student','🐸 Student'],['class','👥 Class'],['test','📊 Test']].map(([k,l])=>`<button class="${gTab===k?'on':''}" onclick="gTab='${k}';renderGrowth()">${l}</button>`).join('')}</div></div>
+  <div class="card row wrap">
+    ${gTab!=='test'?`<label class="row">Class <select onchange="gClass=this.value;renderGrowth()">${ids.map(c=>opt(c,CN[c],gClass)).join('')}</select></label>`:''}
+    ${gTab==='student'?`<label class="row">Student <select onchange="gSid=this.value;renderGrowth()">${sids.map(s=>opt(s,NM[s],gSid)).join('')}</select></label>`:''}
+    ${gTab==='test'?`<label class="row">Test <select onchange="gTest=this.value;renderGrowth()">${tests.map(t=>opt(t.id,t.name,gTest)).join('')}</select></label>`:''}
+    <!-- EXPORTS -->
+    <span class="grow"></span><button class="btn" onclick="exportCSV()">⬇️ CSV (TEA/PFAI)</button>
+    <button class="btn" onclick="printTIA('class')">🖨 TIA report: class</button>${gTab==='student'?`<button class="btn" onclick="printTIA('student')">🖨 TIA: student</button>`:''}</div>
+  ${body}`;
+  if(gTab==='student' && gSid) ensureFrames(gSid);
+}
+function classAvg(cid, t, period){ const v=studentsOf(cid).map(s=>resultAt(s,t.id,period)).filter(Boolean).map(r=>Number(r.score)); return v.length?round2(v.reduce((a,b)=>a+b,0)/v.length):null; }
+/* CSV — one row per student per session. Column names follow the FitnessGram/PFAI fields; map to your district template. */
+function exportCSV(){
+  const cell=v=>{ v=v==null?'':String(v); return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; };
+  const cust=customTests(), H=['Class','Grade','Student Name','Sex','Birthdate','Age at Test','School Year','Session','Test Date',
+    'PACER Laps','PACER Course (m)','PACER HFZ','Push-Ups','Push-Up HFZ','Curl-Ups','Curl-Up HFZ','Sit-and-Reach (in)','Sit-and-Reach HFZ',
+    'Height (in)','Weight (lb)','BMI','BMI HFZ',...cust.map(t=>`${t.name} (${t.unit||''})`),'GrowGrit XP'];
+  const lines=[H.map(cell).join(',')], hz=r=>{ const h=hfzOf(r); return h==='in'?'HFZ':h==='ni'?'NI':''; };
+  for(const cid of orderedClasses()) for(const sid of studentsOf(cid)) for(const s of live(DB.sessions).filter(x=>x.school_year===DB.settings.schoolYear)
+      .sort((a,b)=>PERIODS.indexOf(a.period)-PERIODS.indexOf(b.period))){
+    const R=tid=>{ const r=DB.results[resultId(s.id,sid,tid)]; return r&&!r.deleted?r:null; };
+    if(![...BUILTIN_TESTS,...cust].some(t=>R(t.id))) continue; const p=R('pacer'), b=R('bmi');
+    lines.push([CN[DB.sessions[s.id]?.class_id]||CN[cid], GR[cid], NM[sid], SX[sid], BD[sid], ageAt(sid,s.session_date)??'', s.school_year, s.period, s.session_date,
+      p?.score, p?.extra?.course_m, hz(p), R('pushups')?.score, hz(R('pushups')), R('curlups')?.score, hz(R('curlups')), R('sitreach')?.score, hz(R('sitreach')),
+      b?.extra?.height_in, b?.extra?.weight_lb, b?.score, hz(b), ...cust.map(t=>R(t.id)?.score), studentXP(sid)].map(cell).join(','));
+  }
+  download(`GrowGrit_PFAI_${DB.settings.schoolYear}.csv`, lines.join('\n')); toast(`Exported ${lines.length-1} rows`);
+}
+/* TIA GROWTH REPORT (printable) */
+function printTIA(kind){
+  const tests=visibleTests(), sy=DB.settings.schoolYear, when=new Date().toLocaleDateString();
+  const studentPage=sid=>{ const xp=studentXP(sid); return `<div class="page"><h1>TIA Fitness Growth Report — ${esc(NM[sid])}</h1>
+    <p>${esc(CN[DB.students[sid].class_id])} · Grade ${esc(GR[DB.students[sid].class_id]||'—')} · ${esc(sy)} · GrowGrit level: ${esc(levelName(xp))} (${xp} XP)</p>
+    <table><tr><th>Test</th><th>BOY</th><th>MOY</th><th>EOY</th><th>Growth</th><th>HFZ (latest)</th></tr>
+    ${tests.map(t=>{ const v=PERIODS.map(p=>resultAt(sid,t.id,p)), b=v[0], e=v[2]||v[1], pc=b&&e?pctChange(t,b.score,e.score):null, hz=hfzOf(e||b);
+      return `<tr><td>${esc(t.name)}</td>${v.map(r=>`<td>${r?fmtVal(t,r.score):'–'}</td>`).join('')}<td>${pc==null?'–':(pc>=0?'+':'')+pc+'%'}</td><td>${hz==='in'?'HFZ':hz==='ni'?'Needs Improvement':'–'}</td></tr>`; }).join('')}</table>
+    <h2>Recommendations</h2><ul>${recsFor(sid).map(r=>`<li>${r}</li>`).join('')}</ul><p style="font-size:9pt">Printed ${when} · GrowGrit (The Pond)</p></div>`; };
+  let html='';
+  if(kind==='student' && gSid) html=studentPage(gSid);
+  else { const cid=gClass||DB.settings.lastClass, sids=studentsOf(cid);
+    html=`<div class="page"><h1>TIA Fitness Growth Report — ${esc(CN[cid])}</h1><p>Grade ${esc(GR[cid]||'—')} · ${esc(sy)} · ${sids.length} students · printed ${when}</p>
+    <h2>Summary (BOY → EOY, or latest)</h2><table><tr><th>Test</th><th>Students with BOY + later</th><th>Avg BOY</th><th>Avg latest</th><th>Avg growth</th><th>% improved</th><th>HFZ BOY</th><th>HFZ latest</th></tr>
+    ${tests.map(t=>{ const pairs=sids.map(s=>({b:resultAt(s,t.id,'BOY'),e:resultAt(s,t.id,'EOY')||resultAt(s,t.id,'MOY')})).filter(x=>x.b&&x.e);
+      const avg=a=>a.length?round2(a.reduce((x,y)=>x+y,0)/a.length):null; const g=pairs.map(x=>pctChange(t,x.b.score,x.e.score)).filter(v=>v!=null);
+      const hzp=list=>{ const h=list.map(hfzOf).filter(Boolean); return h.length?Math.round(h.filter(x=>x==='in').length/h.length*100)+'%':'–'; };
+      return `<tr><td>${esc(t.name)}</td><td>${pairs.length}</td><td>${fmtVal(t,avg(pairs.map(x=>+x.b.score)))}</td><td>${fmtVal(t,avg(pairs.map(x=>+x.e.score)))}</td>
+      <td>${g.length?(avg(g)>=0?'+':'')+avg(g)+'%':'–'}</td><td>${g.length?Math.round(g.filter(v=>v>0).length/g.length*100)+'%':'–'}</td>
+      <td>${hzp(sids.map(s=>resultAt(s,t.id,'BOY')))}</td><td>${hzp(sids.map(s=>resultAt(s,t.id,'EOY')||resultAt(s,t.id,'MOY')))}</td></tr>`; }).join('')}</table>
+    <h2>Students</h2><table><tr><th>Student</th>${tests.map(t=>`<th>${esc(t.name)} BOY→latest</th>`).join('')}</tr>
+    ${sids.map(s=>`<tr><td>${esc(NM[s])}</td>${tests.map(t=>{ const b=resultAt(s,t.id,'BOY'), e=resultAt(s,t.id,'EOY')||resultAt(s,t.id,'MOY'), pc=b&&e?pctChange(t,b.score,e.score):null;
+      return `<td>${b?fmtVal(t,b.score):'–'} → ${e?fmtVal(t,e.score):'–'}${pc!=null?` (${pc>=0?'+':''}${pc}%)`:''}</td>`; }).join('')}</tr>`).join('')}</table></div>`
+      + sids.map(studentPage).join(''); }
+  $('#print-area').innerHTML=html; setTimeout(()=>window.print(),100);
+}
+
+/* ============================================================
+   SCREEN 6: LIBRARY — technique videos + sound bites
+   ============================================================ */
+async function mediaURL(kind, row, bucket){ const k=kind+':'+row.id; if(MEDIA_URL[k]) return MEDIA_URL[k];
+  const b=await getBlob(k, bucket, row.storage_path); if(!b) return null; return MEDIA_URL[k]=URL.createObjectURL(b); }
+function renderLibrary(){
+  const el=$('#scr-library'), tests=visibleTests(), vids=live(DB.videos);
+  el.innerHTML=`<h1>Library</h1>
+  <!-- TECHNIQUE LIBRARY -->
+  <div class="card"><h2>🎬 Technique videos <span class="muted small">(teaching demos only)</span></h2>
+    <div class="row wrap" style="margin-bottom:10px"><select id="vid-test">${tests.map(t=>opt(t.id,t.name,DB.settings.lastTest)).join('')}</select>
+      <input type="text" id="vid-title" placeholder="Title (e.g. Push-up form)"><label class="btn go">⬆️ Upload video<input type="file" accept="video/*" class="hide" onchange="uploadVideo(this)"></label></div>
+    ${tests.map(t=>{ const v=vids.filter(x=>x.test_id===t.id); return v.length?`<h3>${t.icon} ${esc(t.name)}</h3>${v.map(x=>`<div class="vid-card"><button class="btn go big" onclick="playVideo('${x.id}')">▶ ${esc(x.title||'Demo')}</button>
+      <span class="muted small grow">${x.size_bytes?Math.round(x.size_bytes/1048576)+' MB':''}</span><button class="btn warn" onclick="delMedia('videos','${x.id}')">🗑</button></div>`).join('')}`:''; }).join('') || '<p class="muted">No videos yet. Upload a short demo for each test.</p>'}
+  </div>
+  <!-- SOUND BITES -->
+  <div class="card"><h2>🔊 Sound bites <span class="muted small">(0–3 s)</span></h2>
+    <div class="row wrap" style="margin-bottom:12px"><label class="btn go">⬆️ Upload clips<input type="file" accept="audio/*" multiple class="hide" onchange="uploadSounds(this)"></label>
+      <button class="btn" onclick="importRibbit()">🐰 Import from Ribbit Rabbit</button></div>
+    ${soundGrid(true)}</div>`;
+}
+async function uploadVideo(inp){ const f=inp.files[0]; inp.value=''; if(!f) return; if(f.size>100*1024*1024) return toast('Videos must be under 100 MB', true);
+  const id=uid(), ext=(f.name.split('.').pop()||'mp4').toLowerCase(), path=`${user.id}/${id}.${ext}`; await idbPut('video:'+id, f);
+  const row={id, user_id:user.id, test_id:$('#vid-test').value, title:$('#vid-title').value.trim()||f.name.replace(/\.[^.]+$/,''), storage_path:path, mime:f.type||'video/mp4', size_bytes:f.size, deleted:false};
+  DB.videos[id]=row; if(!user.local){ DB.blobs['video:'+id]={bucket:BUCKET_VIDEOS, path, key:'video:'+id, type:row.mime}; q('technique_videos',id,row,'upsert',{blob:'video:'+id}); }
+  save(); renderLibrary(); toast('Video saved'); }
+async function playVideo(id){ const row=DB.videos[id]; const url=await mediaURL('video',row,BUCKET_VIDEOS); if(!url) return toast('Video not on this device yet — connect to download it.', true);
+  const d=document.createElement('div'); d.id='vplayer'; d.innerHTML=`<video src="${url}" controls autoplay playsinline></video><button class="btn lime big" onclick="closeVideo()">✕ Close</button>`;
+  document.body.appendChild(d); const v=d.querySelector('video'); try{ (d.requestFullscreen||d.webkitRequestFullscreen)?.call(d); }catch{} }
+function closeVideo(){ try{ document.fullscreenElement && document.exitFullscreen(); }catch{} $('#vplayer')?.remove(); }
+function delMedia(kind, id){ if(!confirm('Delete this?')) return; const map=DB[kind], row=map[id]; if(!row) return; row.deleted=true;
+  const table=kind==='videos'?'technique_videos':'sound_bites', bucket=kind==='videos'?BUCKET_VIDEOS:BUCKET_SOUNDS, key=(kind==='videos'?'video:':'sound:')+id;
+  if(!user.local){ q(table,id,row); DB.blobDel.push({bucket, path:row.storage_path}); delete DB.blobs[key]; } else delete map[id];
+  idbDel(key); save(); rerender(); }
+/* SOUND BITES */
+const liveSounds = () => live(DB.sounds).sort((a,b)=>(a.sort||0)-(b.sort||0));
+function soundGrid(edit){ const s=liveSounds(); if(!s.length) return '<p class="muted">No sound bites yet. Upload 0–3 s clips.</p>';
+  return `<div class="sb-grid">${s.map((x,i)=>`<div><button class="sb-btn" id="sb-${x.id}" style="background:${esc(x.color||SB_COLORS[i%SB_COLORS.length])};width:100%" onclick="playSound('${x.id}')">🔊<br>${esc(x.name)}</button>
+    ${edit?`<div class="row" style="margin-top:6px"><button class="btn" onclick="renameSound('${x.id}')" aria-label="Rename">✏️</button><button class="btn warn" onclick="delMedia('sounds','${x.id}')" aria-label="Delete">🗑</button></div>`:''}</div>`).join('')}</div>`; }
+const SOUND_EL={};
+async function playSound(id){ const row=DB.sounds[id]; const url=await mediaURL('sound',row,BUCKET_SOUNDS); if(!url) return toast('Clip not on this device yet', true);
+  let a=SOUND_EL[id]; if(!a){ a=SOUND_EL[id]=new Audio(url); } a.volume=1; a.currentTime=0; a.play().catch(()=>{});
+  const b=$('#sb-'+id); b?.classList.add('playing'); clearTimeout(a._t); a._t=setTimeout(()=>{ a.pause(); b?.classList.remove('playing'); }, 3000); a.onended=()=>b?.classList.remove('playing'); }
+function audioDuration(blob){ return new Promise(res=>{ const a=new Audio(), u=URL.createObjectURL(blob); a.preload='metadata';
+  a.onloadedmetadata=()=>{ res(a.duration); URL.revokeObjectURL(u); }; a.onerror=()=>{ res(NaN); URL.revokeObjectURL(u); }; a.src=u; }); }
+async function addSound(blob, name, source='growgrit'){
+  const dur=await audioDuration(blob); if(isFinite(dur) && dur>3.25) return false; if(blob.size>2*1024*1024) return false;
+  const id=uid(), ext=(blob.type.split('/')[1]||'mp3').replace('mpeg','mp3').replace('x-',''), path=`${user.id}/${id}.${ext}`; await idbPut('sound:'+id, blob);
+  const row={id, user_id:user.id, name:name.slice(0,40), storage_path:path, mime:blob.type||'audio/mpeg', duration_ms:isFinite(dur)?Math.round(dur*1000):null,
+    color:SB_COLORS[liveSounds().length%SB_COLORS.length], sort:liveSounds().length, source_app:source, deleted:false};
+  DB.sounds[id]=row; if(!user.local){ DB.blobs['sound:'+id]={bucket:BUCKET_SOUNDS, path, key:'sound:'+id, type:row.mime}; q('sound_bites',id,row,'upsert',{blob:'sound:'+id}); }
+  return true; }
+async function uploadSounds(inp){ const files=[...inp.files]; inp.value=''; let ok=0, bad=[];
+  for(const f of files){ if(await addSound(f, f.name.replace(/\.[^.]+$/,''))) ok++; else bad.push(f.name); }
+  save(); rerender(); toast(`${ok} clip${ok===1?'':'s'} added${bad.length?` · ${bad.length} skipped (over 3 s or 2 MB)`:''}`, !!bad.length && !ok); }
+function renameSound(id){ const n=prompt('Button name', DB.sounds[id].name); if(!n) return; DB.sounds[id].name=n.slice(0,40); q('sound_bites',id,DB.sounds[id]); save(); rerender(); }
+/* Ribbit Rabbit keeps its sounds in this browser's IndexedDB ("RibbitRabbit" → "sounds"). Read-only import. */
+async function importRibbit(){
+  try{ if(indexedDB.databases){ const l=await indexedDB.databases(); if(!l.some(d=>d.name==='RibbitRabbit')) return toast('No Ribbit Rabbit sounds on this device', true); }
+    const rr=await new Promise((res,rej)=>{ const r=indexedDB.open('RibbitRabbit'); r.onupgradeneeded=()=>{ r.transaction.abort(); }; r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); });
+    if(!rr.objectStoreNames.contains('sounds')){ rr.close(); return toast('No Ribbit Rabbit sounds found', true); }
+    const all=await new Promise(res=>{ const g=rr.transaction('sounds','readonly').objectStore('sounds').getAll(); g.onsuccess=()=>res(g.result||[]); g.onerror=()=>res([]); }); rr.close();
+    const have=new Set(liveSounds().map(s=>s.name)); let ok=0, long=0;
+    for(const s of all){ if(!s.audioData || have.has(s.name)) continue; const blob=await (await fetch(s.audioData)).blob(); if(await addSound(blob, s.name, 'ribbit_rabbit')) ok++; else long++; }
+    save(); rerender(); toast(`Imported ${ok} clip${ok===1?'':'s'}${long?` · ${long} longer than 3 s skipped`:''}`);
+  }catch(e){ toast('Could not read Ribbit Rabbit sounds: '+e.message, true); } }
+function toggleDrawer(){ const d=$('#sb-drawer'); d.classList.toggle('hide'); if(!d.classList.contains('hide')) renderDrawer(); }
+function renderDrawer(){ $('#sb-drawer').innerHTML=`<div class="row" style="margin-bottom:10px"><h2 class="grow" style="margin:0">🔊 Sound bites</h2><button class="btn" onclick="toggleDrawer()">✕ Close</button></div>${soundGrid(false)}`; }
+
+/* ============================================================
+   SCREEN 7: SETTINGS — tests, courses, scoring, levels, sync
+   ============================================================ */
+function renderSettings(){
+  const el=$('#scr-settings'), S=DB.settings, qn=Object.keys(DB.queue).length+Object.keys(DB.blobs).length;
+  el.innerHTML=`<h1>Settings</h1>
+  <!-- SYNC + ACCOUNT -->
+  <div class="card"><h2>Sync & account</h2>
+    <p><b>${esc(user.email)}</b> ${user.local?'<span class="muted">— this device only, not backed up</span>':''}</p>
+    <p>Status: <b>${esc($('#sync').querySelector('span').textContent)}</b> · ${qn} change${qn===1?'':'s'} waiting · Last sync: ${DB.lastSync?new Date(DB.lastSync).toLocaleString():'never'}</p>
+    ${DB.lastError?`<p style="color:var(--bad)">${esc(DB.lastError)}</p>`:''}
+    <div class="row wrap">${user.local?`<button class="btn go" onclick="signIn()">Sign in with Google</button>`:`<button class="btn go" onclick="syncNow()">🔄 Sync now</button>`}
+      <button class="btn" onclick="exportBackup()">💾 Backup (JSON)</button><button class="btn warn" onclick="signOut()">Sign out</button></div>
+    ${user.local?'<p class="muted small">Device-only data stays on this iPad/computer. It is not merged into your Pond account.</p>':''}</div>
+  <!-- TESTS + SCORING -->
+  <div class="card"><h2>Tests & scoring</h2><div class="scroll-x"><table class="tbl"><tr><th>Test</th><th>Type</th><th>Attempts</th><th>Scoring</th><th>Show</th><th></th></tr>
+    ${allTests().map(t=>`<tr><td><b>${t.icon} ${esc(t.name)}</b></td><td>${esc(t.type==='bmi'?'Height/weight':TYPE_INFO[t.type]?.label)}${t.config?.seconds?` · ${t.config.seconds}s`:''}</td>
+      <td>${t.type==='bmi'?'1':`<select onchange="setTestOpt('${t.id}','attempts',+this.value)">${[1,2,3].map(n=>opt(n,n,t.attempts)).join('')}</select>`}</td>
+      <td>${t.type==='bmi'?'—':`<select onchange="setTestOpt('${t.id}','scoring',this.value)">${Object.entries(SCORING).map(([k,l])=>opt(k,l,t.scoring)).join('')}</select>`}</td>
+      <td><input type="checkbox" style="width:30px;height:30px" ${t.hidden?'':'checked'} onchange="setTestOpt('${t.id}','hidden',!this.checked)"></td>
+      <td>${t.custom?`<button class="btn warn" onclick="delTest('${t.id}')">🗑</button>`:''}</td></tr>`).join('')}</table></div>
+    <h3 style="margin-top:16px">＋ Add custom test</h3>
+    <div class="row wrap"><input type="text" id="ct-name" placeholder="e.g. Vertical jump"><select id="ct-type" onchange="$('#ct-sec').classList.toggle('hide',this.value!=='timed_reps')">${Object.entries(TYPE_INFO).map(([k,v])=>opt(k,v.label,'inarow_reps')).join('')}</select>
+      <input type="text" id="ct-unit" placeholder="unit (reps, in, sec, m)" style="width:170px"><input type="number" id="ct-sec" class="hide" placeholder="seconds" value="30" style="width:120px">
+      <select id="ct-att">${[1,2,3].map(n=>opt(n,n+' attempt'+(n>1?'s':''),3)).join('')}</select><select id="ct-score">${Object.entries(SCORING).map(([k,l])=>opt(k,l,'best')).join('')}</select>
+      <button class="btn go" onclick="addTest()">Add test</button></div></div>
+  <!-- COURSE -->
+  <div class="card"><h2>Lap course</h2><div class="row wrap"><div class="seg">${[['15','15 m'],['20','20 m'],['custom','Custom'],['loop','Loop']].map(([m,l])=>`<button class="${S.course.mode===m?'on':''}" onclick="DB.settings.course.mode='${m}';saveSettings();pzBuild();renderSettings()">${l}</button>`).join('')}</div>
+    <label class="row">Custom runway <input type="number" value="${esc(S.course.custom)}" style="width:100px" onchange="DB.settings.course.custom=+this.value||20;saveSettings();pzBuild()"> m</label>
+    <label class="row">Loop <input type="number" value="${esc(S.course.loop)}" style="width:110px" onchange="DB.settings.course.loop=+this.value||400;saveSettings()"> m</label></div></div>
+  <!-- XP LEVELS -->
+  <div class="card"><h2>Levels</h2><p class="muted small">One name per line. A new level every ${XPCFG.xpPerLevel} XP. First result ${XPCFG.firstResultXP} XP; later results ${XPCFG.firstResultXP} + (% improvement × ${XPCFG.improvementMultiplier}); first time in HFZ +${XPCFG.hfzBonus}.</p>
+    <textarea id="lvl-names" style="font-family:inherit;font-size:1em">${esc(levelNames().join('\n'))}</textarea>
+    <div class="row" style="margin-top:8px"><button class="btn go" onclick="DB.settings.levelNames=$('#lvl-names').value.split('\\n').map(s=>s.trim()).filter(Boolean);saveSettings();toast('Levels saved')">Save levels</button>
+    <button class="btn" onclick="DB.settings.levelNames=null;saveSettings();renderSettings()">Reset</button></div></div>
+  <!-- SCHOOL YEAR + SLIDESHOW -->
+  <div class="card row wrap"><label class="row">School year <input type="text" value="${esc(S.schoolYear)}" style="width:140px" onchange="DB.settings.schoolYear=this.value.trim()||curSY();saveSettings()"></label>
+    <label class="row">Slideshow speed <input type="range" min="80" max="600" step="20" value="${S.frameMs}" oninput="DB.settings.frameMs=+this.value;startTicker()" onchange="saveSettings()"> <span class="muted small">faster ← → slower</span></label></div>
+  <!-- THEME -->
+  <div class="card"><h2>Theme</h2><div id="theme-mount"></div></div>`;
+  try{ window.BFT_THEME && BFT_THEME.renderPicker($('#theme-mount')); }catch{}
+}
+function setTestOpt(id, k, v){ const t=DB.tests[id];
+  if(t){ if(k==='hidden'){ t.config=Object.assign({},t.config,{hidden:v}); } else t[k]=v; q('fitness_tests',id,t); save(); }
+  else { DB.settings.testOverrides[id]=Object.assign({},DB.settings.testOverrides[id],{[k]:v}); saveSettings(); } renderSettings(); }
+function addTest(){ const name=$('#ct-name').value.trim(); if(!name) return toast('Give the test a name', true); const type=$('#ct-type').value;
+  const id=uid(), row={id, user_id:user.id, name, test_type:type, unit:$('#ct-unit').value.trim()||TYPE_INFO[type].unit, direction:TYPE_INFO[type].dir,
+    attempts:+$('#ct-att').value, scoring:$('#ct-score').value, config: type==='timed_reps'?{seconds:+$('#ct-sec').value||30}:{}, sort:customTests().length, deleted:false};
+  DB.tests[id]=row; q('fitness_tests',id,row); save(); renderSettings(); toast(name+' added'); }
+function delTest(id){ if(!confirm('Delete this custom test? Its results stay saved but hidden.')) return; DB.tests[id].deleted=true; q('fitness_tests',id,DB.tests[id]);
+  if(user.local) delete DB.tests[id]; save(); renderSettings(); }
+function exportBackup(){ download(`GrowGrit_backup_${localISO()}.json`, JSON.stringify(DB), 'application/json'); }
+</script>
+</body>
+</html>
