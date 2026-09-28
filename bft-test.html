@@ -125,6 +125,16 @@
     .btn:hover { opacity: .88; }
     .btn:disabled { opacity: .4; cursor: default; }
 
+    /* ADD STUDENT FORM */
+    #add-student-form { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px;
+                        padding-top: 14px; border-top: 1px solid #f1f5f9; }
+    #add-student-form input {
+      flex: 1; min-width: 100px; padding: 9px 12px; border: 1.5px solid #e2e8f0;
+      border-radius: 9px; font-size: 14px; outline: none;
+      background: var(--bft-surface); color: var(--bft-text);
+    }
+    #add-student-form input:focus { border-color: var(--bft-header); }
+
     /* XP LOG */
     #xp-log { font-size: 13px; }
     .log-row { padding: 8px 0; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; }
@@ -211,6 +221,13 @@
 
         <!-- STUDENT GRID -->
         <div id="student-grid"></div>
+
+        <!-- ADD STUDENT -->
+        <form id="add-student-form" onsubmit="addStudent(event)">
+          <input id="new-first" placeholder="First name" required>
+          <input id="new-last"  placeholder="Last name">
+          <button class="btn btn-primary" type="submit">+ Add</button>
+        </form>
       </div>
 
       <!-- XP LOG -->
@@ -496,6 +513,26 @@ function updateActionButtons() {
   document.getElementById('undo-btn').disabled  = !hasBatch;
   document.getElementById('selected-info').textContent =
     hasSel ? `${selectedStudents.size} student${selectedStudents.size>1?'s':''} selected` : '';
+}
+
+/* ── ADD STUDENT ─────────────────────────── */
+async function addStudent(e) {
+  e.preventDefault();
+  if (!activeClassId) return toast('Select a class first.', true);
+  const first = document.getElementById('new-first').value.trim();
+  const last  = document.getElementById('new-last').value.trim();
+  if (!first) return;
+  try {
+    await BFT_STUDENTS.saveStudent({
+      class_id:   activeClassId,
+      first_name: first,
+      last_name:  last
+    });
+    document.getElementById('new-first').value = '';
+    document.getElementById('new-last').value  = '';
+    toast(`${first}${last ? ' ' + last : ''} added.`);
+    await loadStudents(activeClassId);
+  } catch (err) { toast('Error: ' + err.message, true); }
 }
 
 /* ── XP ACTIONS ──────────────────────────── */

@@ -65,9 +65,12 @@
   }
 
   async function decryptField(payload) {
-    if (!payload || !payload.iv || !payload.data) return '[no data]';
+    if (!payload) return '';
+    // Plain-text fallback: legacy rows may store a real string, not {iv,data}
+    if (typeof payload === 'string') return payload;
+    if (!payload.iv || !payload.data) return '';
     try { return await decryptWith(payload, _cryptoKey); }
-    catch { return '[unable to decrypt]'; }
+    catch { return ''; }
   }
 
   // Photo encryption: 12-byte IV prepended to raw AES-GCM output
@@ -115,10 +118,13 @@
       .or('archived.is.null,archived.eq.false')
       .order('created_at', { ascending: false });
     if (error) throw error;
-    return Promise.all(data.map(async c => ({
-      ...c,
-      name: await decryptField(c.name_encrypted)
-    })));
+    return Promise.all(data.map(async c => {
+      const enc = await decryptField(c.name_encrypted);
+      // Fall back to plain name column (index.html stores '[encrypted]' as placeholder,
+      // but legacy rows may have the real name there)
+      const name = (enc && enc !== '[encrypted]') ? enc : (c.name || '');
+      return { ...c, name };
+    }));
   }
 
   // ── STUDENTS ──────────────────────────────────────────────
@@ -132,20 +138,42 @@
       .or('archived.is.null,archived.eq.false')
       .order('created_at', { ascending: true });
     if (error) throw error;
-    return Promise.all(data.map(async s => ({
-      ...s,
-      name: await decryptField(s.name_encrypted)
-    })));
+    return Promise.all(data.map(async s => {
+      const enc = await decryptField(s.name_encrypted);
+      // Assemble fallback from first/last if full name decrypt failed
+      const first = enc ? '' : await decryptField(s.first_name_encrypted);
+      const last  = enc ? '' : await decryptField(s.last_name_encrypted);
+      const name  = enc || [first, last].filter(Boolean).join(' ') || '[unnamed]';
+      return { ...s, name };
+    }));
   }
 
   async function _saveStudent(student) {
     _assert();
     const row = { ...student };
+
+    // Encrypt first_name + last_name if provided, build name_encrypted from full name
+    const first = student.first_name !== undefined ? String(student.first_name).trim() : null;
+    const last  = student.last_name  !== undefined ? String(student.last_name).trim()  : null;
+    if (first !== null || last !== null) {
+      const full = [first, last].filter(Boolean).join(' ');
+      if (full) row.name_encrypted = await encryptField(full);
+      if (first) row.first_name_encrypted = await encryptField(first);
+      if (last)  row.last_name_encrypted  = await encryptField(last);
+      delete row.first_name;
+      delete row.last_name;
+    }
+
+    // Plain name field override (index.html stores '[encrypted]' as NOT NULL placeholder)
     if (student.name !== undefined) {
       row.name_encrypted = await encryptField(String(student.name));
       delete row.name;
     }
-    const { error } = await _sb.from('beta_students').upsert(row, { onConflict: 'id' });
+    if (!row.name) row.name = '[encrypted]';
+
+    const { error } = await _sb
+      .from('beta_students')
+      .upsert(row, { onConflict: 'id' });
     if (error) throw error;
   }
 
