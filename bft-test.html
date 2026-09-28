@@ -97,7 +97,7 @@
     #student-grid { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 4px; }
     .student-card {
       background: var(--bft-surface); border: 1.5px solid #e2e8f0;
-      border-radius: 12px; padding: 12px; text-align: center; width: 120px;
+      border-radius: 12px; padding: 12px; text-align: center; width: 140px;
       cursor: pointer; transition: .15s; position: relative;
     }
     .student-card:hover  { border-color: var(--bft-accent); }
@@ -106,13 +106,11 @@
       width: 64px; height: 64px; border-radius: 50%; object-fit: cover;
       background: var(--bft-tint); margin: 0 auto 8px; display: block;
       font-size: 28px; line-height: 64px; text-align: center; overflow: hidden;
+      position: relative;
     }
     .student-photo img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
     .student-name { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
     .student-xp   { font-size: 12px; color: #64748b; }
-    .student-upload { position: absolute; bottom: 6px; right: 6px; font-size: 11px;
-                      background: var(--bft-surface); border: 1.5px solid #e2e8f0;
-                      border-radius: 6px; padding: 2px 6px; cursor: pointer; }
 
     /* ACTIONS */
     .action-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
@@ -153,6 +151,54 @@
     /* FOOTER */
     #footer { text-align: center; padding: 24px; font-size: 13px; color: #94a3b8; }
     #footer a { color: var(--bft-accent); text-decoration: none; }
+
+    /* LEADER STAR */
+    .leader-star {
+      position: absolute; top: 5px; right: 5px;
+      background: none; border: none; cursor: pointer;
+      font-size: 18px; line-height: 1; padding: 2px; color: #d97706;
+      transition: .15s;
+    }
+    .leader-star:not(.on) { opacity: .35; }
+    .leader-star.on { text-shadow: 0 0 6px rgba(217,119,6,.5); }
+
+    /* APP-PHOTO INDICATOR */
+    .student-card[data-app-photo] .student-photo::after {
+      content: 'app'; position: absolute; bottom: 1px; right: 1px;
+      background: var(--bft-accent); color: #fff;
+      font-size: 9px; font-weight: 700; padding: 1px 4px; border-radius: 4px;
+      line-height: 1.4;
+    }
+    /* CARD ACTION BUTTONS */
+    .card-actions { display: flex; justify-content: center; gap: 4px; margin-top: 6px; }
+    .icon-btn {
+      background: var(--bft-surface); border: 1.5px solid #e2e8f0;
+      border-radius: 6px; padding: 3px 7px; cursor: pointer; font-size: 13px;
+      min-height: 32px; min-width: 32px; line-height: 1;
+    }
+    .icon-btn:hover { background: var(--bft-tint); border-color: var(--bft-header); }
+    .icon-btn.danger:hover { background: #fee2e2; border-color: #fca5a5; }
+
+    /* MODALS */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5);
+      align-items: center; justify-content: center; z-index: 100;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal-box {
+      background: var(--bft-surface); border-radius: 14px; padding: 24px;
+      width: 340px; max-width: 92vw; display: flex; flex-direction: column; gap: 12px;
+    }
+    .modal-box h3 { font-size: 1.05rem; font-weight: 700; }
+    .modal-box input[type=text], .modal-box input[type=file] {
+      width: 100%; padding: 9px 12px; border: 1.5px solid #e2e8f0; border-radius: 9px;
+      font-size: 14px; outline: none; background: var(--bft-surface); color: var(--bft-text);
+    }
+    .modal-box input:focus { border-color: var(--bft-header); }
+    .modal-box label.checkbox-row {
+      display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer;
+    }
+    .modal-actions { display: flex; gap: 8px; flex-wrap: wrap; }
   </style>
 </head>
 <body>
@@ -258,8 +304,35 @@
 <!-- TOAST -->
 <div id="toast"></div>
 
-<!-- HIDDEN FILE INPUT FOR PHOTO UPLOAD -->
-<input type="file" id="photo-file" accept="image/*" style="display:none" onchange="handlePhotoUpload(event)">
+<!-- PHOTO MODAL -->
+<div id="photo-modal" class="modal-overlay">
+  <div class="modal-box">
+    <h3>Upload photo — <span id="photo-modal-name"></span></h3>
+    <input type="file" id="photo-file" accept="image/*">
+    <label class="checkbox-row">
+      <input type="checkbox" id="app-photo-only">
+      Use only in this app (bft-test)
+    </label>
+    <div class="modal-actions">
+      <button class="btn btn-primary"   onclick="handlePhotoModalUpload()">Upload</button>
+      <button class="btn btn-danger"    id="remove-app-btn" onclick="doRemoveAppPhoto()" style="display:none">Remove app photo</button>
+      <button class="btn btn-secondary" onclick="closePhotoModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT MODAL -->
+<div id="edit-modal" class="modal-overlay">
+  <div class="modal-box">
+    <h3>Edit student</h3>
+    <input type="text" id="edit-first" placeholder="First name">
+    <input type="text" id="edit-last"  placeholder="Last name">
+    <div class="modal-actions">
+      <button class="btn btn-primary"   onclick="saveEditStudent()">Save</button>
+      <button class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+    </div>
+  </div>
+</div>
 
 <script>
 /* ── GLOBALS ────────────────────────────── */
@@ -269,7 +342,7 @@ let selectedStudents = new Set();   // Set of student ids
 let lastBatchId = null;
 let allStudents = [];               // current class student objects
 let xpTotals = {};                  // studentId -> total_xp
-let photoUploadTarget = null;       // studentId for pending upload
+let appPhotoSet = new Set();        // studentIds that have a bft-test app photo
 
 /* ── SUPABASE INIT ───────────────────────── */
 function initSB() {
@@ -452,9 +525,13 @@ async function loadStudents(classId) {
   try {
     allStudents = await BFT_STUDENTS.listStudents(classId);
     const ids   = allStudents.map(s => s.id);
-    const tots  = ids.length ? await BFT_STUDENTS.totals(ids) : [];
+    const [tots, appPhotos] = await Promise.all([
+      ids.length ? BFT_STUDENTS.totals(ids) : Promise.resolve([]),
+      ids.length ? BFT_STUDENTS.listAppPhotos(ids, 'bft-test') : Promise.resolve([])
+    ]);
     xpTotals = {};
     tots.forEach(t => { xpTotals[t.student_id] = t.total_xp; });
+    appPhotoSet = new Set(appPhotos.map(p => p.student_id));
     renderGrid();
   } catch (e) {
     grid.innerHTML = '<p style="color:#dc2626">' + e.message + '</p>';
@@ -471,29 +548,43 @@ function renderGrid() {
   grid.innerHTML = allStudents.map(s => {
     const sel = selectedStudents.has(s.id);
     const xp  = xpTotals[s.id] || 0;
-    return `<div class="student-card${sel?' selected':''}" id="sc-${s.id}" onclick="toggleStudent('${s.id}')">
+    const hasAppPhoto = appPhotoSet.has(s.id);
+    return `<div class="student-card${sel?' selected':''}"
+              id="sc-${s.id}" ${hasAppPhoto?'data-app-photo="1"':''}
+              onclick="toggleStudent('${s.id}')">
+      <button class="leader-star${s.is_leader?' on':''}"
+              title="${s.is_leader?'Remove leader badge':'Make leader'}"
+              onclick="event.stopPropagation();toggleLeader('${s.id}',${!!s.is_leader})">★</button>
       <div class="student-photo" id="photo-${s.id}">
-        ${s.photo_path ? '<img id="img-' + s.id + '" src="" alt="">' : '🐸'}
+        <img id="img-${s.id}" src="" alt="" style="display:none">
+        <span id="nophoto-${s.id}">🐸</span>
       </div>
       <div class="student-name">${escHtml(s.name)}</div>
       <div class="student-xp">${xp} XP</div>
-      <label class="student-upload" title="Upload photo" onclick="event.stopPropagation();triggerUpload('${s.id}')">📷</label>
+      <div class="card-actions" onclick="event.stopPropagation()">
+        <button class="icon-btn" title="Photo" onclick="openPhotoModal('${s.id}')">📷</button>
+        <button class="icon-btn" title="Edit"  onclick="openEditModal('${s.id}')">✏️</button>
+        <button class="icon-btn danger" title="Delete" onclick="confirmDelete('${s.id}')">🗑️</button>
+      </div>
     </div>`;
   }).join('');
 
-  // Load photos async
-  allStudents.forEach(s => {
-    if (s.photo_path) loadPhoto(s);
-  });
+  // Load photos async — app photo takes priority over main photo
+  allStudents.forEach(s => loadPhoto(s));
 
   updateActionButtons();
 }
 
 async function loadPhoto(student) {
   try {
-    const url = await BFT_STUDENTS.getPhotoURL(student);
+    const appUrl = appPhotoSet.has(student.id)
+      ? await BFT_STUDENTS.getAppPhotoURL(student.id, 'bft-test') : null;
+    const url = appUrl || (student.photo_path ? await BFT_STUDENTS.getPhotoURL(student) : null);
+    if (!url) return;
     const img = document.getElementById('img-' + student.id);
-    if (img && url) img.src = url;
+    const placeholder = document.getElementById('nophoto-' + student.id);
+    if (img) { img.src = url; img.style.display = ''; }
+    if (placeholder) placeholder.style.display = 'none';
   } catch (_) {}
 }
 
@@ -577,24 +668,104 @@ async function showHistory(studentId, studentName) {
   } catch (e) { el.innerHTML = '<p style="color:#dc2626">' + e.message + '</p>'; }
 }
 
-/* ── PHOTOS ──────────────────────────────── */
-function triggerUpload(studentId) {
-  photoUploadTarget = studentId;
-  document.getElementById('photo-file').click();
+/* ── LEADER TOGGLE ───────────────────────── */
+async function toggleLeader(studentId, currentIsLeader) {
+  try {
+    await BFT_STUDENTS.setLeader(studentId, !currentIsLeader);
+    toast(!currentIsLeader ? 'Leader badge added.' : 'Leader badge removed.');
+    await loadStudents(activeClassId);
+  } catch (e) { toast('Error: ' + e.message, true); }
 }
 
-async function handlePhotoUpload(event) {
-  const file = event.target.files[0];
-  if (!file || !photoUploadTarget) return;
-  event.target.value = '';
-  const id = photoUploadTarget;
-  photoUploadTarget = null;
+/* ── EDIT STUDENT ────────────────────────── */
+let editModalStudentId = null;
+
+function openEditModal(studentId) {
+  editModalStudentId = studentId;
+  const s = allStudents.find(x => x.id === studentId);
+  const parts = (s?.name || '').split(' ');
+  document.getElementById('edit-first').value = parts[0] || '';
+  document.getElementById('edit-last').value  = parts.slice(1).join(' ') || '';
+  document.getElementById('edit-modal').classList.add('active');
+  document.getElementById('edit-first').focus();
+}
+
+function closeEditModal() {
+  editModalStudentId = null;
+  document.getElementById('edit-modal').classList.remove('active');
+}
+
+async function saveEditStudent() {
+  if (!editModalStudentId) return;
+  const first = document.getElementById('edit-first').value.trim();
+  const last  = document.getElementById('edit-last').value.trim();
+  if (!first) return toast('First name is required.', true);
+  try {
+    await BFT_STUDENTS.saveStudent({ id: editModalStudentId, first_name: first, last_name: last });
+    closeEditModal();
+    toast('Student updated.');
+    await loadStudents(activeClassId);
+  } catch (e) { toast('Error: ' + e.message, true); }
+}
+
+/* ── DELETE STUDENT ──────────────────────── */
+async function confirmDelete(studentId) {
+  const s = allStudents.find(x => x.id === studentId);
+  if (!confirm(`Remove ${s?.name || 'this student'} from this class? This cannot be undone.`)) return;
+  try {
+    await BFT_STUDENTS.deleteStudent(studentId);
+    if (selectedStudents.has(studentId)) selectedStudents.delete(studentId);
+    toast('Student removed.');
+    await loadStudents(activeClassId);
+  } catch (e) { toast('Error: ' + e.message, true); }
+}
+
+/* ── PHOTOS ──────────────────────────────── */
+let photoModalStudentId = null;
+
+async function openPhotoModal(studentId) {
+  photoModalStudentId = studentId;
+  const s = allStudents.find(x => x.id === studentId);
+  document.getElementById('photo-modal-name').textContent = s?.name || '';
+  document.getElementById('photo-file').value = '';
+  document.getElementById('app-photo-only').checked = false;
+  const hasAppPhoto = appPhotoSet.has(studentId);
+  document.getElementById('remove-app-btn').style.display = hasAppPhoto ? '' : 'none';
+  document.getElementById('photo-modal').classList.add('active');
+}
+
+function closePhotoModal() {
+  photoModalStudentId = null;
+  document.getElementById('photo-modal').classList.remove('active');
+}
+
+async function handlePhotoModalUpload() {
+  const file = document.getElementById('photo-file').files[0];
+  if (!file) return toast('Choose a photo first.', true);
+  const appOnly = document.getElementById('app-photo-only').checked;
+  const id = photoModalStudentId;
+  closePhotoModal();
   toast('Uploading photo…');
   try {
-    await BFT_STUDENTS.uploadPhoto(id, file);
-    toast('Photo saved!');
+    if (appOnly) {
+      await BFT_STUDENTS.uploadAppPhoto(id, 'bft-test', file);
+    } else {
+      await BFT_STUDENTS.uploadPhoto(id, file);
+    }
+    toast(appOnly ? 'App photo saved!' : 'Main photo saved for all apps!');
     await loadStudents(activeClassId);
   } catch (e) { toast('Upload error: ' + e.message, true); }
+}
+
+async function doRemoveAppPhoto() {
+  const id = photoModalStudentId;
+  closePhotoModal();
+  toast('Removing app photo…');
+  try {
+    await BFT_STUDENTS.removeAppPhoto(id, 'bft-test');
+    toast('App photo removed. Main photo will show.');
+    await loadStudents(activeClassId);
+  } catch (e) { toast('Error: ' + e.message, true); }
 }
 
 /* ── THEME PICKER ────────────────────────── */
@@ -624,10 +795,15 @@ window.addEventListener('DOMContentLoaded', () => {
   initAuth();
 });
 
-// Allow Enter key in passphrase modal
+// Allow Enter key in modals
 document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && document.getElementById('pass-modal').classList.contains('active')) {
     submitPassphrase();
+  } else if (e.key === 'Enter' && document.getElementById('edit-modal').classList.contains('active')) {
+    saveEditStudent();
+  } else if (e.key === 'Escape') {
+    closeEditModal();
+    closePhotoModal();
   }
 });
 </script>

@@ -18,7 +18,8 @@
   let _sb        = null;
   let _user      = null;
   let _cryptoKey = null;
-  let _photoCache = {};   // studentId → blob URL
+  let _photoCache    = {};   // studentId → blob URL
+  let _appPhotoCache = {};   // "studentId:appSource" → blob URL
   let _rtChannel  = null;
 
   const QUEUE_KEY = 'bft_xp_queue';
@@ -95,7 +96,8 @@
     _sb        = sb;
     _user      = user;
     _cryptoKey = cryptoKey;
-    _photoCache = {};
+    _photoCache    = {};
+    _appPhotoCache = {};
     _flushQueue();
   }
 
@@ -240,6 +242,137 @@
     return url;
   }
 
+  // ── LEADER FLAG ───────────────────────────────────────────────
+
+  async function _setLeader(studentId, isLeader) {
+    _assert();
+    const { error } = await _sb
+      .from('beta_students')
+      .update({ is_leader: !!isLeader })
+      .eq('id', studentId);
+    if (error) throw error;
+  }
+
+  // ── DELETE (ARCHIVE) ──────────────────────────────────────────
+
+  async function _deleteStudent(studentId) {
+    _assert();
+    const { error } = await _sb
+      .from('beta_students')
+      .update({ archived: true })
+      .eq('id', studentId);
+    if (error) throw error;
+  }
+
+  // ── APP-SPECIFIC PHOTOS ───────────────────────────────────────
+
+  // Returns [{student_id, photo_path}] for all students in the list that have
+  // an app-specific photo for appSource.
+  async function _listAppPhotos(studentIds, appSource) {
+    _assert();
+    if (!studentIds.length) return [];
+    const { data, error } = await _sb
+      .from('student_app_photos')
+      .select('student_id,photo_path')
+      .in('student_id', studentIds)
+      .eq('app_source', appSource);
+    if (error) throw error;
+    return data;
+  }
+
+  async function _uploadAppPhoto(studentId, appSource, file) {
+    _assert();
+    if (!appSource) throw new Error('uploadAppPhoto() requires appSource');
+
+    const bitmap = await createImageBitmap(file);
+    const SIZE   = 256;
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = SIZE;
+    const ctx    = canvas.getContext('2d');
+    const scale  = Math.min(SIZE / bitmap.width, SIZE / bitmap.height);
+    const w = Math.round(bitmap.width * scale);
+    const h = Math.round(bitmap.height * scale);
+    ctx.drawImage(bitmap, (SIZE - w) / 2, (SIZE - h) / 2, w, h);
+    bitmap.close();
+
+    const mime = canvas.toDataURL('image/webp').startsWith('data:image/webp')
+      ? 'image/webp' : 'image/jpeg';
+    const blob     = await new Promise(res => canvas.toBlob(res, mime, 0.85));
+    const buffer   = await blob.arrayBuffer();
+    const encrypted = await _encryptBuffer(buffer);
+    const path = `${_user.id}/${studentId}_${appSource}.bin`;
+
+    const { error: upErr } = await _sb.storage
+      .from('student-photos')
+      .upload(path, new Blob([encrypted], { type: 'application/octet-stream' }), { upsert: true });
+    if (upErr) throw upErr;
+
+    const { error: dbErr } = await _sb
+      .from('student_app_photos')
+      .upsert({ user_id: _user.id, student_id: studentId, app_source: appSource, photo_path: path },
+              { onConflict: 'student_id,app_source' });
+    if (dbErr) throw dbErr;
+
+    const cacheKey = `${studentId}:${appSource}`;
+    if (_appPhotoCache[cacheKey]) {
+      URL.revokeObjectURL(_appPhotoCache[cacheKey]);
+      delete _appPhotoCache[cacheKey];
+    }
+    return path;
+  }
+
+  async function _getAppPhotoURL(studentId, appSource) {
+    _assert();
+    const cacheKey = `${studentId}:${appSource}`;
+    if (_appPhotoCache[cacheKey]) return _appPhotoCache[cacheKey];
+
+    const { data, error } = await _sb
+      .from('student_app_photos')
+      .select('photo_path')
+      .eq('student_id', studentId)
+      .eq('app_source', appSource)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data?.photo_path) return null;
+
+    const { data: blob, error: dlErr } = await _sb.storage
+      .from('student-photos')
+      .download(data.photo_path);
+    if (dlErr) throw dlErr;
+
+    const buffer    = await blob.arrayBuffer();
+    const decrypted = await _decryptBuffer(buffer);
+    const url = URL.createObjectURL(new Blob([decrypted], { type: 'image/webp' }));
+    _appPhotoCache[cacheKey] = url;
+    return url;
+  }
+
+  async function _removeAppPhoto(studentId, appSource) {
+    _assert();
+    const { data } = await _sb
+      .from('student_app_photos')
+      .select('photo_path')
+      .eq('student_id', studentId)
+      .eq('app_source', appSource)
+      .maybeSingle();
+
+    if (data?.photo_path) {
+      await _sb.storage.from('student-photos').remove([data.photo_path]);
+      const cacheKey = `${studentId}:${appSource}`;
+      if (_appPhotoCache[cacheKey]) {
+        URL.revokeObjectURL(_appPhotoCache[cacheKey]);
+        delete _appPhotoCache[cacheKey];
+      }
+    }
+
+    const { error } = await _sb
+      .from('student_app_photos')
+      .delete()
+      .eq('student_id', studentId)
+      .eq('app_source', appSource);
+    if (error) throw error;
+  }
+
   // ── XP EVENTS ─────────────────────────────────────────────
 
   async function _award(studentIds, delta, { appSource, classId, reason } = {}) {
@@ -323,6 +456,8 @@
           () => callback('students'))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'xp_events' },
           () => callback('xp_events'))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'student_app_photos' },
+          () => callback('students'))
       .subscribe();
 
     return () => {
@@ -370,8 +505,17 @@
     listClasses:  _listClasses,
     listStudents: _listStudents,
     saveStudent:  _saveStudent,
+    deleteStudent: _deleteStudent,
+
     uploadPhoto:  _uploadPhoto,
     getPhotoURL:  _getPhotoURL,
+
+    setLeader:     _setLeader,
+
+    listAppPhotos:  _listAppPhotos,
+    uploadAppPhoto: _uploadAppPhoto,
+    getAppPhotoURL: _getAppPhotoURL,
+    removeAppPhoto: _removeAppPhoto,
 
     award:   _award,
     undo:    _undo,
