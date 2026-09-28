@@ -120,9 +120,9 @@
     if (error) throw error;
     return Promise.all(data.map(async c => {
       const enc = await decryptField(c.name_encrypted);
-      // Fall back to plain name column (index.html stores '[encrypted]' as placeholder,
-      // but legacy rows may have the real name there)
-      const name = (enc && enc !== '[encrypted]') ? enc : (c.name || '');
+      // Plain-text fallback for legacy rows (index.html placeholder starts with '[')
+      const plain = (c.name && !c.name.startsWith('[')) ? c.name : '';
+      const name = enc || plain || '';
       return { ...c, name };
     }));
   }
@@ -140,10 +140,11 @@
     if (error) throw error;
     return Promise.all(data.map(async s => {
       const enc = await decryptField(s.name_encrypted);
-      // Assemble fallback from first/last if full name decrypt failed
       const first = enc ? '' : await decryptField(s.first_name_encrypted);
       const last  = enc ? '' : await decryptField(s.last_name_encrypted);
-      const name  = enc || [first, last].filter(Boolean).join(' ') || '[unnamed]';
+      // Plain-text fallback for legacy rows; placeholder starts with '['
+      const plain = (s.name && !s.name.startsWith('[')) ? s.name : '';
+      const name  = enc || [first, last].filter(Boolean).join(' ') || plain || '[unnamed]';
       return { ...s, name };
     }));
   }
