@@ -167,12 +167,11 @@
       delete row.last_name;
     }
 
-    // Plain name field override (index.html stores '[encrypted]' as NOT NULL placeholder)
+    // Plain name field override
     if (student.name !== undefined) {
       row.name_encrypted = await encryptField(String(student.name));
       delete row.name;
     }
-    if (!row.name) row.name = '[encrypted]';
 
     const { error } = await _sb
       .from('beta_students')
