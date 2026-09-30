@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#06131A">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Pond Snap">
+<title>Pond Snap · The Pond</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐸</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&display=swap" rel="stylesheet">
+<!-- SHARED CONFIG -->
+<script src="bft-config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<!-- STYLES -->
+<style>
+:root{
+  --abyss:#06131A; --deep:#0B1F27; --reed:#15343C; --reed-hi:#21505A;
+  --lily:#5BE38A; --lily-ink:#062014; --firefly:#FFC857; --firefly-ink:#2A1C00;
+  --mist:#E2F2EC; --silt:#88A9A1; --coral:#FF7A6B;
+  --st:env(safe-area-inset-top,0px); --sbm:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;min-height:100vh;background:var(--abyss);color:var(--mist);
+  font:400 16px/1.45 'Bricolage Grotesque',ui-rounded,system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
+body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:radial-gradient(120% 55% at 90% -8%,rgba(91,227,138,.12),transparent 60%),
+             radial-gradient(90% 50% at -10% 110%,rgba(40,150,180,.15),transparent 60%)}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none;padding:0}
+:focus-visible{outline:2px solid var(--firefly);outline-offset:2px}
+.hidden{display:none!important}
+.num{font-variant-numeric:tabular-nums}
+.vh{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0)}
+.bad{color:var(--coral);font-weight:600;margin:0 0 12px;min-height:1px}
+
+/* ELEMENT TILE */
+.tile{--c:var(--lily);position:relative;flex:0 0 auto;width:68px;height:78px;border-radius:12px;
+  background:linear-gradient(160deg,color-mix(in srgb,var(--c) 15%,var(--deep)),var(--deep) 70%);
+  border:1.5px solid color-mix(in srgb,var(--c) 32%,transparent);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  transition:transform .15s,border-color .15s,box-shadow .15s}
+.tile .z,.tile .n{position:absolute;top:5px;font-size:11px;font-weight:700}
+.tile .z{left:7px;color:color-mix(in srgb,var(--c) 70%,var(--mist))}
+.tile .n{right:7px;color:var(--silt)}
+.tile .sym{font-size:27px;font-weight:800;letter-spacing:-.02em;line-height:1;color:var(--c);margin-top:6px}
+.tile .sym.m{font-size:21px}
+.tile .lbl{font-size:11px;font-weight:600;margin-top:5px;max-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tile[aria-pressed="true"]{border-color:var(--c);transform:translateY(-2px);
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--c) 22%,transparent),0 10px 24px -10px var(--c)}
+.tile.xl{width:132px;height:150px;border-radius:22px;border-width:2px}
+.tile.xl .sym{font-size:62px}
+.tile.xl .z,.tile.xl .n{font-size:15px;top:10px}.tile.xl .z{left:13px}
+.tile.xl .lbl{font-size:14px;max-width:none}
+
+/* LOGIN GATE */
+.gate{position:fixed;inset:0;z-index:60;background:var(--abyss);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:18px;text-align:center;
+  padding:calc(32px + var(--st)) 28px calc(32px + var(--sbm))}
+.gate h1{font-size:44px;font-weight:800;letter-spacing:-.035em;margin:6px 0 0;line-height:1}
+.gate p{margin:0;color:var(--silt);max-width:30ch}
+.gate .btn{width:auto;padding:0 28px;margin-top:8px}
+.gmsg{min-height:1.4em;font-size:15px}
+
+/* PASSPHRASE */
+.modal{position:fixed;inset:0;z-index:70;background:rgba(2,8,11,.8);display:flex;align-items:center;justify-content:center;padding:20px}
+.mcard{width:100%;max-width:420px;background:var(--deep);border:1px solid var(--reed-hi);border-radius:24px;padding:24px}
+.mcard h2,.sheet h2{font-size:24px;font-weight:800;letter-spacing:-.02em;margin:0 0 8px}
+.mdesc{color:var(--silt);margin:0 0 18px;font-size:15px}
+.ack{display:flex;gap:10px;align-items:flex-start;font-size:14px;color:var(--silt);margin:0 0 14px}
+.ack input{width:20px;height:20px;accent-color:var(--lily);flex:none;margin-top:1px}
+
+/* TOP BAR */
+.dock{position:sticky;top:0;z-index:20;padding:calc(10px + var(--st)) 16px 10px;
+  background:rgba(6,19,26,.9);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--reed)}
+.top{display:flex;align-items:center;gap:10px}
+.brand{margin-right:auto;display:flex;align-items:center;gap:9px;font-size:21px;font-weight:800;letter-spacing:-.03em}
+.mark{display:grid;place-items:center;width:32px;height:32px;border-radius:8px;border:1.5px solid var(--lily);
+  color:var(--lily);font-size:15px;font-weight:800;background:color-mix(in srgb,var(--lily) 12%,var(--deep))}
+.seg{display:flex;background:var(--deep);border:1px solid var(--reed);border-radius:999px;padding:3px}
+.seg button{min-height:36px;padding:0 13px;border-radius:999px;font-size:14px;font-weight:700;color:var(--silt)}
+.seg button[aria-pressed="true"]{background:var(--reed-hi);color:var(--mist)}
+.iconbtn{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:var(--deep);border:1px solid var(--reed)}
+.iconbtn svg{width:20px;height:20px}
+
+/* SEARCH */
+.search{display:block;position:relative;margin-top:10px}
+.search input{width:100%;height:46px;border-radius:14px;border:1px solid var(--reed);background:var(--deep);
+  padding:0 14px 0 42px;font-size:16px;outline:none;-webkit-appearance:none}
+.search input:focus{border-color:var(--lily)}
+.search svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);width:18px;height:18px}
+
+/* ELEMENT FILTER */
+.tiles{display:flex;gap:10px;overflow-x:auto;margin:0 -16px;padding:14px 16px 8px;scrollbar-width:none}
+.tiles::-webkit-scrollbar{display:none}
+.bar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-top:4px;font-size:14px;color:var(--silt);font-weight:600}
+.chip{display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 13px;border-radius:999px;
+  border:1px solid var(--reed);background:var(--deep);font-weight:700;font-size:14px;color:var(--silt)}
+.chip b{font-weight:800}
+.chip[aria-pressed="true"]{border-color:var(--firefly);color:var(--firefly);background:color-mix(in srgb,var(--firefly) 10%,var(--deep))}
+
+/* STUDENT LIST */
+main{padding:4px 10px calc(112px + var(--sbm));max-width:720px;margin:0 auto}
+.letter{font-size:13px;font-weight:800;color:var(--silt);padding:16px 10px 4px}
+.row{display:flex;align-items:center;gap:14px;padding:8px 8px;border-radius:18px}
+.row:active{background:var(--deep)}
+.avwrap{--c:var(--lily);position:relative;flex:none}
+.av{display:grid;place-items:center;width:58px;height:58px;border-radius:50%;overflow:hidden;
+  background:var(--deep);border:2px solid var(--c);color:var(--c);font-weight:800;font-size:19px}
+.av.empty{border-style:dashed}
+.av img{width:100%;height:100%;object-fit:cover;display:block}
+.cam{position:absolute;right:-3px;bottom:-3px;width:25px;height:25px;border-radius:50%;
+  background:var(--firefly);border:2.5px solid var(--abyss);display:grid;place-items:center}
+.cam svg{width:13px;height:13px}
+.who{flex:1;min-width:0;text-align:left;min-height:58px;display:flex;flex-direction:column;justify-content:center}
+.nm{font-size:18px;font-weight:700;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.meta{display:flex;align-items:center;gap:10px;margin-top:3px;font-size:14px;color:var(--silt)}
+.mini{--c:var(--lily);display:inline-grid;place-items:center;height:22px;padding:0 6px;border-radius:6px;font-size:12px;font-weight:800;
+  color:var(--c);background:color-mix(in srgb,var(--c) 13%,transparent);border:1px solid color-mix(in srgb,var(--c) 40%,transparent)}
+.dim{opacity:.6}
+.empty-state{text-align:center;padding:56px 24px;color:var(--silt)}
+.empty-state h3{color:var(--mist);font-size:22px;font-weight:800;margin:0 0 6px;letter-spacing:-.02em}
+.empty-state p{margin:0 auto 18px;max-width:30ch}
+.empty-state .btn{width:auto;padding:0 24px}
+.feed{display:block;text-align:center;margin:30px auto 0;color:var(--silt);font-size:14px;font-weight:600;text-decoration:none}
+
+/* ADD BUTTON */
+.fab{position:fixed;right:18px;bottom:calc(18px + var(--sbm));z-index:30;height:58px;padding:0 22px 0 18px;border-radius:999px;
+  background:var(--lily);color:var(--lily-ink);font-weight:800;font-size:17px;display:flex;align-items:center;gap:6px;
+  box-shadow:0 14px 30px -12px rgba(91,227,138,.75)}
+.fab svg{width:22px;height:22px}
+
+/* SHEETS */
+.scrim{position:fixed;inset:0;z-index:40;background:rgba(2,8,11,.66);opacity:0;pointer-events:none;transition:opacity .2s}
+.scrim.open{opacity:1;pointer-events:auto}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:50;max-width:640px;margin:0 auto;max-height:92vh;overflow-y:auto;
+  background:var(--deep);border:1px solid var(--reed-hi);border-bottom:0;border-radius:26px 26px 0 0;
+  padding:10px 20px calc(24px + var(--sbm));transform:translateY(105%);visibility:hidden;
+  transition:transform .28s cubic-bezier(.2,.8,.2,1),visibility .28s}
+.sheet.open{transform:none;visibility:visible}
+.grab{width:44px;height:5px;border-radius:3px;background:var(--reed-hi);margin:0 auto 16px}
+.field{display:block;margin-bottom:14px;min-width:0}
+.lab{display:block;font-size:14px;font-weight:700;color:var(--silt);margin-bottom:6px}
+.inp{width:100%;height:50px;border-radius:14px;border:1px solid var(--reed-hi);background:var(--abyss);
+  padding:0 14px;font-size:17px;outline:none;-webkit-appearance:none;appearance:none}
+.inp:focus{border-color:var(--lily)}
+select.inp{padding-right:40px;background-repeat:no-repeat;background-position:right 14px center;background-size:14px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2388A9A1' stroke-width='3' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")}
+.area{height:150px;padding:12px 14px;font-size:14px;line-height:1.4;resize:vertical}
+.unit{display:block;position:relative}
+.unit em{position:absolute;right:13px;top:50%;transform:translateY(-50%);font-style:normal;color:var(--silt);font-size:15px;pointer-events:none}
+.unit .inp{padding-right:34px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1.25fr;gap:12px}
+.photo{display:flex;flex-direction:column;align-items:center;gap:14px;margin-bottom:20px}
+.photo .av{width:132px;height:132px;font-size:40px;border-width:3px}
+.pbtns{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.pbtns.left{justify-content:flex-start;margin:12px 0 4px}
+.btn{position:relative;height:48px;padding:0 18px;border-radius:14px;font-weight:700;font-size:16px;
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;cursor:pointer}
+.btn.fire{background:var(--firefly);color:var(--firefly-ink)}
+.btn.ghost{background:var(--abyss);border:1px solid var(--reed-hi)}
+.btn.lily{background:var(--lily);color:var(--lily-ink);width:100%;height:54px;font-size:17px;font-weight:800}
+.btn.wide{width:100%;margin-top:10px}
+.btn.danger{color:var(--coral);width:100%;margin-top:8px}
+.btn:disabled{opacity:.5;cursor:default}
+.preview{min-height:1.5em;margin:10px 0 14px;font-size:15px}
+.mlist{display:flex;flex-direction:column;gap:8px}
+.mitem{height:56px;border-radius:16px;background:var(--abyss);border:1px solid var(--reed);text-align:left;padding:0 18px;font-weight:700;font-size:17px}
+
+/* TOAST */
+.toast{position:fixed;left:50%;bottom:calc(92px + var(--sbm));z-index:80;max-width:88vw;transform:translate(-50%,16px);
+  background:var(--mist);color:var(--abyss);padding:12px 18px;border-radius:14px;font-weight:700;font-size:15px;text-align:center;
+  opacity:0;pointer-events:none;transition:opacity .2s,transform .2s}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.toast.err{background:var(--coral);color:#2a0703}
+
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<!-- LOGIN GATE -->
+<section id="gate" class="gate">
+  <div class="tile xl" style="--c:#5BE38A" aria-hidden="true"><span class="z num">1</span><span class="sym">Ps</span><span class="lbl">Pond Snap</span></div>
+  <h1>Pond Snap</h1>
+  <p>Photos, heights and weights for every student, saved to The Pond.</p>
+  <button class="btn lily" id="signInBtn" type="button">Sign in with Google</button>
+  <p id="gateMsg" class="gmsg" role="status"></p>
+</section>
+
+<!-- PASSPHRASE -->
+<div id="pass" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="passTitle">
+  <form class="mcard" id="passForm" autocomplete="off">
+    <h2 id="passTitle">Enter your passphrase</h2>
+    <p id="passDesc" class="mdesc">The same one you use in The Pond. It unlocks student names on this device only.</p>
+    <label class="field"><span class="lab">Passphrase</span><input class="inp" id="passIn" type="password" required></label>
+    <div id="passNew" class="hidden">
+      <label class="field"><span class="lab">Type it again</span><input class="inp" id="passConfirm" type="password"></label>
+      <label class="ack"><input type="checkbox" id="passAck"><span>I wrote it down. If it’s lost, student names can’t be recovered by anyone.</span></label>
+    </div>
+    <p id="passErr" class="bad" role="alert"></p>
+    <button class="btn lily" id="passGo" type="submit">Unlock</button>
+    <button class="btn ghost wide" id="passOut" type="button">Sign out</button>
+  </form>
+</div>
+
+<!-- TOP BAR -->
+<header class="dock" id="dock">
+  <div class="top">
+    <div class="brand"><span class="mark">Ps</span>Pond Snap</div>
+    <div class="seg" role="group" aria-label="Sort by">
+      <button type="button" data-sort="first" aria-pressed="true">First</button>
+      <button type="button" data-sort="last" aria-pressed="false">Last</button>
+    </div>
+    <button class="iconbtn" id="menuBtn" type="button" aria-label="Menu">
+      <svg viewBox="0 0 24 24" fill="#E2F2EC"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
+    </button>
+  </div>
+  <!-- SEARCH -->
+  <label class="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#88A9A1" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+    <input id="q" type="search" placeholder="Find a student" autocomplete="off" enterkeyhint="search" aria-label="Find a student">
+  </label>
+  <!-- ELEMENT FILTER -->
+  <div class="tiles" id="tiles" role="group" aria-label="Filter by element"></div>
+  <div class="bar">
+    <span id="count" class="num"></span>
+    <button class="chip" id="missBtn" type="button" aria-pressed="false">Needs photo <b id="missN" class="num">0</b></button>
+  </div>
+</header>
+
+<!-- STUDENT LIST -->
+<main>
+  <div id="list"></div>
+  <a class="feed" id="feed" target="_blank" rel="noopener">🐸 Feed the Frogs and the Pond will Grow</a>
+</main>
+
+<!-- ADD BUTTON -->
+<button class="fab" id="addBtn" type="button">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Add student
+</button>
+
+<!-- QUICK CAMERA -->
+<input type="file" id="quickCam" accept="image/*" capture="environment" class="vh" tabindex="-1" aria-hidden="true">
+<div id="scrim" class="scrim"></div>
+
+<!-- EDIT SHEET -->
+<section class="sheet" id="sh-edit" role="dialog" aria-modal="true" aria-labelledby="edTitle" aria-hidden="true">
+  <div class="grab"></div>
+  <h2 id="edTitle">Edit student</h2>
+  <div class="photo">
+    <div class="avwrap" id="edAvWrap"><span class="av" id="edAv"></span></div>
+    <div class="pbtns">
+      <label class="btn fire">Camera<input type="file" id="edCam" accept="image/*" capture="environment" class="vh"></label>
+      <label class="btn ghost">Library<input type="file" id="edLib" accept="image/*" class="vh"></label>
+      <button class="btn ghost" id="edNoPhoto" type="button">Remove photo</button>
+    </div>
+  </div>
+  <div class="grid2">
+    <label class="field"><span class="lab">First name</span><input class="inp" id="edFirst" autocapitalize="words" autocomplete="off"></label>
+    <label class="field"><span class="lab">Last name</span><input class="inp" id="edLast" autocapitalize="words" autocomplete="off"></label>
+  </div>
+  <label class="field"><span class="lab">Element</span><select class="inp" id="edEl"></select></label>
+  <label class="field hidden" id="edNewWrap"><span class="lab">New element name</span><input class="inp" id="edNewEl" placeholder="3Zn" autocomplete="off" autocapitalize="off"></label>
+  <div class="grid3">
+    <label class="field"><span class="lab">Height</span><span class="unit"><input class="inp num" id="edFt" type="number" inputmode="numeric" min="0" max="8"><em>ft</em></span></label>
+    <label class="field"><span class="lab">&nbsp;</span><span class="unit"><input class="inp num" id="edIn" type="number" inputmode="decimal" step="0.5" min="0" max="11.5"><em>in</em></span></label>
+    <label class="field"><span class="lab">Weight</span><span class="unit"><input class="inp num" id="edLb" type="number" inputmode="decimal" step="0.1" min="0"><em>lb</em></span></label>
+  </div>
+  <button class="btn lily" id="edSave" type="button">Save changes</button>
+  <button class="btn danger" id="edRemove" type="button">Remove student</button>
+</section>
+
+<!-- IMPORT SHEET -->
+<section class="sheet" id="sh-import" role="dialog" aria-modal="true" aria-labelledby="imTitle" aria-hidden="true">
+  <div class="grab"></div>
+  <h2 id="imTitle">Import roster</h2>
+  <p class="mdesc">Paste your roster JSON or choose a .json file. Students already here are skipped.</p>
+  <textarea class="inp area" id="imText" spellcheck="false" aria-label="Roster JSON" placeholder='{"classes":[{"className":"3Zn","students":["Maria Garcia","Alex Chen"]}]}'></textarea>
+  <div class="pbtns left">
+    <label class="btn ghost">Choose file<input type="file" id="imFile" accept=".json,application/json,text/plain" class="vh"></label>
+    <button class="btn ghost" id="imPrompt" type="button">Copy AI helper prompt</button>
+  </div>
+  <p id="imPreview" class="preview" role="status"></p>
+  <button class="btn lily" id="imGo" type="button" disabled>Import students</button>
+</section>
+
+<!-- MENU SHEET -->
+<section class="sheet" id="sh-menu" role="dialog" aria-modal="true" aria-label="Menu" aria-hidden="true">
+  <div class="grab"></div>
+  <p class="mdesc" id="who"></p>
+  <div class="mlist">
+    <button class="mitem" id="mImport" type="button">Import roster</button>
+    <button class="mitem" id="mRefresh" type="button">Refresh from The Pond</button>
+    <button class="mitem" id="mLock" type="button">Lock</button>
+    <button class="mitem" id="mOut" type="button">Sign out</button>
+  </div>
+</section>
+
+<!-- TOAST -->
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script>
+// CONFIG
+const CFG = Object.assign({
+  SUPABASE_URL: 'https://aiczpuoskwzqtzvoomll.supabase.co',
+  SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFpY3pwdW9za3d6cXR6dm9vbWxsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4MzczNjgsImV4cCI6MjEwNDQxMzM2OH0.ttZE_4PrGb7qCJjcOKdahv4lH02JrWR4BpePsXC4gpA',
+  SUPPORT_URL: 'https://buymeacoffee.com/tools4teachers'
+}, window.BFT_CONFIG || {});
+const BUCKET = 'student-photos';
+const PLACEHOLDER = '[encrypted]';
+const PREFS_KEY = 'pondsnap-prefs';
+const PALETTE = ['#5BE38A','#58C4F6','#FFC857','#FF8FB1','#B79CFF','#FF9F5A','#4FE0D0','#E8E36A'];
+const CAM_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="#2A1C00" stroke-width="2.6" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.2"/></svg>';
+const AI_PROMPT = `Convert the student roster below into JSON. Reply with ONLY the JSON, no other text, in exactly this format:
+{"classes":[{"className":"3Zn","students":["First Last","First Last"]}]}
+Rules: one entry per class/element, using the class name exactly as written (like Kb or 3Zn). Write each student as "First Last". Keep every student and don't invent any.
+
+ROSTER:
+`;
+
+// PERIODIC TABLE
+const PT = {};
+'H Hydrogen|He Helium|Li Lithium|Be Beryllium|B Boron|C Carbon|N Nitrogen|O Oxygen|F Fluorine|Ne Neon|Na Sodium|Mg Magnesium|Al Aluminum|Si Silicon|P Phosphorus|S Sulfur|Cl Chlorine|Ar Argon|K Potassium|Ca Calcium|Sc Scandium|Ti Titanium|V Vanadium|Cr Chromium|Mn Manganese|Fe Iron|Co Cobalt|Ni Nickel|Cu Copper|Zn Zinc|Ga Gallium|Ge Germanium|As Arsenic|Se Selenium|Br Bromine|Kr Krypton|Rb Rubidium|Sr Strontium|Y Yttrium|Zr Zirconium|Nb Niobium|Mo Molybdenum|Tc Technetium|Ru Ruthenium|Rh Rhodium|Pd Palladium|Ag Silver|Cd Cadmium|In Indium|Sn Tin|Sb Antimony|Te Tellurium|I Iodine|Xe Xenon|Cs Cesium|Ba Barium|La Lanthanum|Ce Cerium|Pr Praseodymium|Nd Neodymium|Pm Promethium|Sm Samarium|Eu Europium|Gd Gadolinium|Tb Terbium|Dy Dysprosium|Ho Holmium|Er Erbium|Tm Thulium|Yb Ytterbium|Lu Lutetium|Hf Hafnium|Ta Tantalum|W Tungsten|Re Rhenium|Os Osmium|Ir Iridium|Pt Platinum|Au Gold|Hg Mercury|Tl Thallium|Pb Lead|Bi Bismuth|Po Polonium|At Astatine|Rn Radon|Fr Francium|Ra Radium|Ac Actinium|Th Thorium|Pa Protactinium|U Uranium|Np Neptunium|Pu Plutonium|Am Americium|Cm Curium|Bk Berkelium|Cf Californium|Es Einsteinium|Fm Fermium|Md Mendelevium|No Nobelium|Lr Lawrencium|Rf Rutherfordium|Db Dubnium|Sg Seaborgium|Bh Bohrium|Hs Hassium|Mt Meitnerium|Ds Darmstadtium|Rg Roentgenium|Cn Copernicium|Nh Nihonium|Fl Flerovium|Mc Moscovium|Lv Livermorium|Ts Tennessine|Og Oganesson'
+  .split('|').forEach((s, i) => { const [sym, name] = s.split(' '); PT[sym] = { num: i + 1, name }; });
+
+// "3Zn" -> grade 3, Zinc 30 · "Kb" -> grade K, Boron 5
+function parseElement(clsName) {
+  const m = String(clsName || '').trim().match(/^(PK|K|\d{1,2})[\s-]*([A-Za-z]{1,2})$/i);
+  if (!m) return null;
+  const sym = m[2][0].toUpperCase() + m[2].slice(1).toLowerCase();
+  return PT[sym] ? { grade: m[1].toUpperCase(), sym, ...PT[sym] } : null;
+}
+function fallbackSym(name) {
+  const w = String(name).trim().split(/\s+/).filter(Boolean);
+  if (!w.length) return '?';
+  if (w.length === 1) return w[0].slice(0, 2).replace(/^./, c => c.toUpperCase());
+  return w.slice(0, 3).map(x => x[0].toUpperCase()).join('');
+}
+
+// STATE
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+const collator = new Intl.Collator(undefined, { sensitivity: 'base', numeric: true });
+let sb = null;
+try {
+  sb = supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY, {
+    auth: { flowType: 'implicit', detectSessionInUrl: false, persistSession: true, autoRefreshToken: true, storageKey: 'the-pond-auth' }
+  });
+} catch (e) { console.error(e); }
+let user = null, key = null, salt = null, isNew = false, loading = false;
+let classes = [], students = [];
+let prefs = Object.assign({ sort: 'first', filter: 'all', missing: false }, readJSON(PREFS_KEY));
+let query = '';
+let editing = null, draftPhoto = null, draftUrl = null;
+let quickId = null, importPlan = null;
+
+// HELPERS
+function readJSON(k) { try { return JSON.parse(localStorage.getItem(k)) || {}; } catch (e) { return {}; } }
+function savePrefs() { try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch (e) {} }
+let toastTimer;
+function toast(msg, err) {
+  const t = $('toast'); t.textContent = msg; t.classList.toggle('err', !!err); t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), err ? 4200 : 2400);
+}
+function gateMsg(msg, err) { const g = $('gateMsg'); g.textContent = msg || ''; g.style.color = err ? 'var(--coral)' : 'var(--silt)'; }
+function splitName(str) {
+  str = String(str || '').trim().replace(/\s+/g, ' ');
+  if (str.includes(',')) { const [l, f] = str.split(/,(.*)/s); return { first: (f || '').trim() || l.trim(), last: f ? l.trim() : '' }; }
+  const i = str.lastIndexOf(' ');
+  return i < 0 ? { first: str, last: '' } : { first: str.slice(0, i), last: str.slice(i + 1) };
+}
+const fullName = s => `${s.first} ${s.last}`.trim();
+const shown = s => prefs.sort === 'last' && s.last ? `${s.last}, ${s.first}` : fullName(s);
+const sortKey = s => prefs.sort === 'last' ? `${s.last || s.first} ${s.first}` : `${s.first} ${s.last}`;
+const initials = s => ((s.first[0] || '') + (s.last[0] || '')).toUpperCase() || '?';
+const clsOf = id => classes.find(c => c.id === id);
+function fmtHeight(h) {
+  const n = parseFloat(h); if (!n) return '';
+  const ft = Math.floor(n / 12), inch = Math.round((n - ft * 12) * 10) / 10;
+  return `${ft}′ ${inch}″`;
+}
+function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
+
+// ENCRYPTION (matches The Pond: PBKDF2 100k + AES-GCM, payload {iv,data})
+const toB64 = buf => { const b = new Uint8Array(buf); let s = ''; for (let i = 0; i < b.length; i += 0x8000) s += String.fromCharCode.apply(null, b.subarray(i, i + 0x8000)); return btoa(s); };
+const fromB64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+async function deriveKey(pass, saltBytes) {
+  const mat = await crypto.subtle.importKey('raw', new TextEncoder().encode(pass), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({ name: 'PBKDF2', salt: saltBytes, iterations: 100000, hash: 'SHA-256' },
+    mat, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+}
+async function enc(text) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const data = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(String(text)));
+  return { iv: toB64(iv), data: toB64(data) };
+}
+const encOrNull = v => (v === '' || v == null) ? null : enc(v);
+async function dec(p) {
+  if (!p || !p.iv || !p.data) return null;
+  try { return new TextDecoder().decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: fromB64(p.iv) }, key, fromB64(p.data))); }
+  catch (e) { return null; }
+}
+
+// AUTH
+const redirectUrl = () => location.origin + location.pathname;
+async function signIn() {
+  if (!sb) return gateMsg('The sign-in library didn’t load. Check your connection and reload.', true);
+  gateMsg('Opening Google…');
+  const { data, error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: redirectUrl(), skipBrowserRedirect: true } });
+  if (error || !data?.url) return gateMsg('Sign-in failed: ' + (error?.message || 'no sign-in link returned'), true);
+  location.assign(data.url);
+}
+async function consumeRedirect() {
+  const hash = new URLSearchParams(location.hash.replace(/^#\/?/, ''));
+  const q = new URLSearchParams(location.search);
+  const strip = () => history.replaceState({}, document.title, location.pathname);
+  const fail = hash.get('error_description') || q.get('error_description') || hash.get('error') || q.get('error');
+  if (fail) { strip(); gateMsg('Google sign-in error: ' + decodeURIComponent(fail).replace(/\+/g, ' '), true); return null; }
+  const at = hash.get('access_token'), rt = hash.get('refresh_token');
+  if (at && rt) {
+    const { data, error } = await sb.auth.setSession({ access_token: at, refresh_token: rt }); strip();
+    if (error) { gateMsg('Session rejected: ' + error.message, true); return null; }
+    return data.session;
+  }
+  const code = q.get('code');
+  if (code) {
+    const { data, error } = await sb.auth.exchangeCodeForSession(code); strip();
+    if (error) { gateMsg('Sign-in failed: ' + error.message, true); return null; }
+    return data.session;
+  }
+  return null;
+}
+async function initAuth() {
+  if (!sb) return gateMsg('The sign-in library didn’t load. Check your connection and reload.', true);
+  try {
+    let session = await consumeRedirect();
+    if (!session) { const { data } = await sb.auth.getSession(); session = data?.session; }
+    if (session) onSignedIn(session.user);
+    sb.auth.onAuthStateChange((ev, s) => {
+      if (ev === 'SIGNED_OUT') return resetToGate();
+      if (s?.user && !user) onSignedIn(s.user);
+    });
+  } catch (e) { gateMsg('Sign-in error: ' + e.message, true); }
+}
+async function onSignedIn(u) {
+  user = u;
+  $('gate').classList.add('hidden');
+  $('who').textContent = 'Signed in as ' + (u.email || 'teacher');
+  try {
+    const { data, error } = await sb.from('beta_profiles').select('crypto_salt').eq('user_id', u.id).maybeSingle();
+    if (error) throw error;
+    if (data?.crypto_salt) { salt = fromB64(data.crypto_salt); isNew = false; }
+    else { salt = crypto.getRandomValues(new Uint8Array(16)); isNew = true; }
+    openPass();
+  } catch (e) { toast('Couldn’t load your Pond profile: ' + e.message, true); }
+}
+function resetToGate() {
+  user = null; key = null; salt = null; classes = []; students = [];
+  closeSheets(); $('pass').classList.add('hidden'); $('gate').classList.remove('hidden');
+  gateMsg(''); render();
+}
+
+// PASSPHRASE
+function openPass() {
+  $('passTitle').textContent = isNew ? 'Create your passphrase' : 'Enter your passphrase';
+  $('passDesc').textContent = isNew
+    ? 'This locks student names so only you can read them. It never leaves this device.'
+    : 'The same one you use in The Pond. It unlocks student names on this device only.';
+  $('passNew').classList.toggle('hidden', !isNew);
+  $('passGo').textContent = isNew ? 'Create and continue' : 'Unlock';
+  $('passErr').textContent = ''; $('passAck').checked = false;
+  $('pass').classList.remove('hidden');
+  setTimeout(() => $('passIn').focus(), 50);
+}
+async function submitPass(e) {
+  e.preventDefault();
+  const p = $('passIn').value, c = $('passConfirm').value;
+  const err = m => { $('passErr').textContent = m; };
+  if (isNew) {
+    if (p.length < 8) return err('Use at least 8 characters.');
+    if (p !== c) return err('The two passphrases don’t match.');
+    if (!$('passAck').checked) return err('Check the box to confirm you saved it.');
+  }
+  $('passGo').disabled = true; err('');
+  try {
+    key = await deriveKey(p, salt);
+    if (isNew) {
+      const { error } = await sb.from('beta_profiles').upsert({ user_id: user.id, email: user.email, crypto_salt: toB64(salt) }, { onConflict: 'user_id' });
+      if (error) throw error;
+      isNew = false;
+    } else if (!(await keyWorks())) { key = null; return err('That passphrase didn’t unlock your roster. Try again.'); }
+    $('passIn').value = ''; $('passConfirm').value = '';
+    $('pass').classList.add('hidden');
+    await loadAll();
+  } catch (x) { key = null; err('Couldn’t unlock: ' + x.message); }
+  finally { $('passGo').disabled = false; }
+}
+async function keyWorks() {
+  const r1 = await sb.from('classes').select('name_encrypted').eq('user_id', user.id).not('name_encrypted', 'is', null).limit(1);
+  let p = r1.data?.[0]?.name_encrypted;
+  if (!p) { const r2 = await sb.from('beta_students').select('name_encrypted').limit(1); p = r2.data?.[0]?.name_encrypted; }
+  return !p || (await dec(p)) !== null;
+}
+function lock() { key = null; classes = []; students = []; closeSheets(); render(); openPass(); }
+
+// LOAD DATA
+function decorateClasses() {
+  classes.sort((a, b) => collator.compare(a.name, b.name));
+  classes.forEach((c, i) => { c.color = PALETTE[i % PALETTE.length]; c.el = parseElement(c.name); });
+}
+async function loadAll() {
+  loading = true; render();
+  try {
+    const { data: cls, error: ce } = await sb.from('classes')
+      .select('id,name,name_encrypted').eq('user_id', user.id).or('archived.is.null,archived.eq.false');
+    if (ce) throw ce;
+    classes = [];
+    for (const c of cls) {
+      const name = c.name_encrypted ? await dec(c.name_encrypted) : (c.name && c.name !== PLACEHOLDER ? c.name : null);
+      if (name) classes.push({ id: c.id, name });
+    }
+    decorateClasses();
+    students = [];
+    const ids = classes.map(c => c.id);
+    if (ids.length) {
+      const { data: st, error: se } = await sb.from('beta_students')
+        .select('id,class_id,name_encrypted,first_name_encrypted,last_name_encrypted,height_encrypted,weight_encrypted,photo_path')
+        .in('class_id', ids).or('archived.is.null,archived.eq.false').limit(5000);
+      if (se) throw se;
+      students = await Promise.all(st.map(async s => {
+        let first = await dec(s.first_name_encrypted), last = await dec(s.last_name_encrypted);
+        if (first === null) { const sp = splitName(await dec(s.name_encrypted)); first = sp.first; if (last === null) last = sp.last; }
+        return { id: s.id, classId: s.class_id, first: first || '', last: last || '',
+          height: (await dec(s.height_encrypted)) || '', weight: (await dec(s.weight_encrypted)) || '',
+          photoPath: s.photo_path || null, photoUrl: null };
+      }));
+    }
+    loading = false; render();
+    signPhotos(students.filter(s => s.photoPath));
+  } catch (e) { toast('Couldn’t load your roster: ' + e.message, true); }
+  finally { loading = false; render(); }
+}
+
+// PHOTOS
+async function signPhotos(list) {
+  for (let i = 0; i < list.length; i += 100) {
+    const chunk = list.slice(i, i + 100);
+    const { data } = await sb.storage.from(BUCKET).createSignedUrls(chunk.map(s => s.photoPath), 21600);
+    (data || []).forEach(d => { if (d.signedUrl) chunk.filter(s => s.photoPath === d.path).forEach(s => { s.photoUrl = d.signedUrl; }); });
+    renderList();
+  }
+}
+async function squareJpeg(file, size = 480) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('this phone can’t read that file')); i.src = url; });
+    const w = img.naturalWidth, h = img.naturalHeight, side = Math.min(w, h);
+    const sx = (w - side) / 2, sy = h > w ? (h - side) * 0.3 : (h - side) / 2; // bias up to keep heads in frame
+    const cv = document.createElement('canvas'); cv.width = cv.height = size;
+    const ctx = cv.getContext('2d'); ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(img, sx, sy, side, side, 0, 0, size, size);
+    return await new Promise((res, rej) => cv.toBlob(b => b ? res(b) : rej(new Error('photo couldn’t be processed')), 'image/jpeg', 0.82));
+  } finally { URL.revokeObjectURL(url); }
+}
+async function uploadPhoto(s, blob) {
+  const path = `${user.id}/${s.id}.jpg`;
+  const up = await sb.storage.from(BUCKET).upload(path, blob, { upsert: true, contentType: 'image/jpeg', cacheControl: '60' });
+  if (up.error) throw up.error;
+  const { error } = await sb.from('beta_students').update({ photo_path: path, updated_at: new Date().toISOString() }).eq('id', s.id);
+  if (error) throw error;
+  s.photoPath = path; s.photoUrl = URL.createObjectURL(blob);
+}
+async function deletePhoto(s) {
+  if (!s.photoPath) return;
+  await sb.storage.from(BUCKET).remove([s.photoPath]);
+  const { error } = await sb.from('beta_students').update({ photo_path: null, updated_at: new Date().toISOString() }).eq('id', s.id);
+  if (error) throw error;
+  s.photoPath = null; s.photoUrl = null;
+}
+function quickCam(id) { quickId = id; const inp = $('quickCam'); inp.value = ''; inp.click(); }
+async function onQuickCam(e) {
+  const f = e.target.files[0], s = students.find(x => x.id === quickId); quickId = null;
+  if (!f || !s) return;
+  try { toast('Saving photo…'); await uploadPhoto(s, await squareJpeg(f)); toast('Photo saved'); }
+  catch (x) { toast('Photo didn’t save: ' + x.message, true); }
+  renderList();
+}
+
+// RENDER
+function render() { renderTiles(); renderList(); document.querySelectorAll('[data-sort]').forEach(b => b.setAttribute('aria-pressed', b.dataset.sort === prefs.sort)); }
+function tileHTML(t) {
+  const size = t.sym.length > 2 ? ' m' : '';
+  return `<button type="button" class="tile" style="--c:${t.color}" data-filter="${t.id}" aria-pressed="${prefs.filter === t.id}" title="${esc(t.title)}" aria-label="${esc(t.label)}, ${t.n} students"><span class="z num">${t.z}</span><span class="n num">${t.n}</span><span class="sym${size}">${esc(t.sym)}</span><span class="lbl">${esc(t.label)}</span></button>`;
+}
+function renderTiles() {
+  if (prefs.filter !== 'all' && !clsOf(prefs.filter)) prefs.filter = 'all';
+  const counts = {}; students.forEach(s => { counts[s.classId] = (counts[s.classId] || 0) + 1; });
+  let html = tileHTML({ id: 'all', color: '#E2F2EC', sym: 'All', z: '', label: 'Everyone', title: 'Everyone', n: students.length });
+  classes.filter(c => counts[c.id] || prefs.filter === c.id).forEach(c => {
+    html += tileHTML({ id: c.id, color: c.color, sym: c.el ? c.el.sym : fallbackSym(c.name), z: c.el ? c.el.num : '',
+      label: c.name, title: c.el ? `${c.el.name} · grade ${c.el.grade}` : c.name, n: counts[c.id] || 0 });
+  });
+  $('tiles').innerHTML = html;
+}
+function visible() {
+  const q = query.trim().toLowerCase();
+  return students.filter(s => (prefs.filter === 'all' || s.classId === prefs.filter)
+      && (!prefs.missing || !s.photoPath)
+      && (!q || fullName(s).toLowerCase().includes(q)))
+    .sort((a, b) => collator.compare(sortKey(a), sortKey(b)));
+}
+function emptyHTML(title, body, cta) {
+  return `<div class="empty-state"><h3>${esc(title)}</h3><p>${esc(body)}</p>${cta ? `<button class="btn lily" type="button" data-action="import">Import roster</button>` : ''}</div>`;
+}
+function renderList() {
+  const list = $('list');
+  const inScope = students.filter(s => prefs.filter === 'all' || s.classId === prefs.filter);
+  const shownList = visible();
+  $('count').textContent = `${shownList.length} student${shownList.length === 1 ? '' : 's'}`;
+  $('missN').textContent = inScope.filter(s => !s.photoPath).length;
+  $('missBtn').setAttribute('aria-pressed', !!prefs.missing);
+  if (!key) { list.innerHTML = ''; return; }
+  if (loading) { list.innerHTML = `<div class="empty-state"><p>Unlocking your roster…</p></div>`; return; }
+  if (!students.length) { list.innerHTML = emptyHTML('No students yet', 'Import your roster to get started, or add students one at a time.', true); return; }
+  if (!shownList.length) {
+    list.innerHTML = prefs.missing && !query
+      ? emptyHTML('Every student here has a photo', 'Turn off “Needs photo” to see everyone.')
+      : emptyHTML('No matches', 'Try a different name or element.');
+    return;
+  }
+  let html = '', letter = '';
+  for (const s of shownList) {
+    const L = (sortKey(s).trim()[0] || '#').toUpperCase();
+    if (L !== letter) { html += `<div class="letter">${esc(L)}</div>`; letter = L; }
+    const c = clsOf(s.classId) || { color: '#88A9A1', name: '?' };
+    const hw = [fmtHeight(s.height), s.weight ? `${s.weight} lb` : ''].filter(Boolean);
+    html += `<div class="row">
+      <button type="button" class="avwrap" data-cam="${s.id}" style="--c:${c.color}" aria-label="Take photo of ${esc(fullName(s))}">
+        <span class="av${s.photoPath ? '' : ' empty'}">${s.photoUrl ? `<img src="${esc(s.photoUrl)}" alt="" loading="lazy">` : esc(initials(s))}</span>
+        ${s.photoPath ? '' : `<span class="cam">${CAM_SVG}</span>`}
+      </button>
+      <button type="button" class="who" data-edit="${s.id}">
+        <span class="nm">${esc(shown(s))}</span>
+        <span class="meta"><span class="mini" style="--c:${c.color}">${esc(c.name)}</span>${hw.length ? hw.map(x => `<span class="num">${esc(x)}</span>`).join('') : '<span class="dim">No height or weight</span>'}</span>
+      </button>
+    </div>`;
+  }
+  list.innerHTML = html;
+}
+
+// SHEETS
+function openSheet(name) {
+  closeSheets();
+  const el = $('sh-' + name); el.classList.add('open'); el.setAttribute('aria-hidden', 'false'); el.scrollTop = 0;
+  $('scrim').classList.add('open'); document.body.style.overflow = 'hidden';
+}
+function closeSheets() {
+  document.querySelectorAll('.sheet.open').forEach(s => { s.classList.remove('open'); s.setAttribute('aria-hidden', 'true'); });
+  $('scrim').classList.remove('open'); document.body.style.overflow = '';
+}
+
+// EDIT SHEET
+function fillElementSelect(sel) {
+  const opts = classes.map(c => `<option value="${c.id}"${c.id === sel ? ' selected' : ''}>${esc(c.name)}${c.el ? ' (' + c.el.name + ')' : ''}</option>`).join('');
+  $('edEl').innerHTML = opts + `<option value="__new"${!classes.length ? ' selected' : ''}>＋ New element…</option>`;
+  $('edNewWrap').classList.toggle('hidden', $('edEl').value !== '__new');
+  $('edNewEl').value = '';
+}
+function renderEdPhoto() {
+  const s = editing, c = clsOf($('edEl').value);
+  const url = draftUrl || s.photoUrl;
+  $('edAvWrap').style.setProperty('--c', c ? c.color : '#5BE38A');
+  const av = $('edAv'); av.className = 'av' + (url ? '' : ' empty');
+  av.innerHTML = url ? `<img src="${esc(url)}" alt="">` : esc(initials({ first: $('edFirst').value || s.first, last: $('edLast').value || s.last }));
+  $('edNoPhoto').classList.toggle('hidden', !url);
+}
+function openEdit(id) {
+  const s = id ? students.find(x => x.id === id) : null;
+  editing = s || { id: null, first: '', last: '', classId: prefs.filter !== 'all' ? prefs.filter : (classes[0]?.id || ''), height: '', weight: '', photoPath: null, photoUrl: null };
+  draftPhoto = null; draftUrl = null;
+  $('edTitle').textContent = s ? 'Edit student' : 'Add student';
+  $('edSave').textContent = s ? 'Save changes' : 'Add student';
+  $('edRemove').classList.toggle('hidden', !s);
+  $('edFirst').value = editing.first; $('edLast').value = editing.last;
+  fillElementSelect(editing.classId);
+  const n = parseFloat(editing.height), ft = n ? Math.floor(n / 12) : '';
+  $('edFt').value = n ? ft : ''; $('edIn').value = n ? Math.round((n - ft * 12) * 10) / 10 : '';
+  $('edLb').value = editing.weight;
+  renderEdPhoto(); openSheet('edit');
+  if (!s) setTimeout(() => $('edFirst').focus(), 280);
+}
+async function onEdPhoto(e) {
+  const f = e.target.files[0]; e.target.value = '';
+  if (!f) return;
+  try {
+    const blob = await squareJpeg(f);
+    if (editing.id) { toast('Saving photo…'); await uploadPhoto(editing, blob); toast('Photo saved'); renderList(); }
+    else { draftPhoto = blob; draftUrl = URL.createObjectURL(blob); }
+    renderEdPhoto();
+  } catch (x) { toast('Photo didn’t save: ' + x.message, true); }
+}
+async function onEdNoPhoto() {
+  if (!editing.id) { draftPhoto = null; draftUrl = null; return renderEdPhoto(); }
+  if (!confirm('Remove this photo?')) return;
+  try { await deletePhoto(editing); toast('Photo removed'); renderEdPhoto(); renderList(); }
+  catch (x) { toast('Couldn’t remove photo: ' + x.message, true); }
+}
+async function ensureClass(name) {
+  const hit = classes.find(c => c.name.toLowerCase() === name.toLowerCase());
+  if (hit) return hit.id;
+  const el = parseElement(name);
+  const { data, error } = await sb.from('classes').insert({
+    user_id: user.id, name: PLACEHOLDER, grade_level: PLACEHOLDER,
+    name_encrypted: await enc(name), grade_level_encrypted: el ? await enc(el.grade) : null
+  }).select('id').single();
+  if (error) throw error;
+  classes.push({ id: data.id, name }); decorateClasses();
+  return data.id;
+}
+async function saveEdit() {
+  const first = $('edFirst').value.trim().replace(/\s+/g, ' '), last = $('edLast').value.trim().replace(/\s+/g, ' ');
+  if (!first) return toast('Add a first name.', true);
+  const btn = $('edSave'); btn.disabled = true;
+  const isAdd = !editing.id;
+  try {
+    let classId = $('edEl').value;
+    if (classId === '__new') {
+      const nm = $('edNewEl').value.trim();
+      if (!nm) throw new Error('name the new element (like 3Zn)');
+      classId = await ensureClass(nm);
+    }
+    const ft = parseFloat($('edFt').value) || 0, inch = parseFloat($('edIn').value) || 0;
+    const height = (ft || inch) ? String(Math.round((ft * 12 + inch) * 10) / 10) : '';
+    const w = parseFloat($('edLb').value); const weight = w > 0 ? String(Math.round(w * 10) / 10) : '';
+    const row = {
+      class_id: classId, name_encrypted: await enc(`${first} ${last}`.trim()),
+      first_name_encrypted: await enc(first), last_name_encrypted: await encOrNull(last),
+      height_encrypted: await encOrNull(height), weight_encrypted: await encOrNull(weight),
+      updated_at: new Date().toISOString()
+    };
+    let s = editing;
+    if (isAdd) {
+      const { data, error } = await sb.from('beta_students').insert({ ...row, archived: false }).select('id').single();
+      if (error) throw error;
+      s = { ...editing, id: data.id }; students.push(s);
+    } else {
+      const { error } = await sb.from('beta_students').update(row).eq('id', s.id);
+      if (error) throw error;
+    }
+    Object.assign(s, { first, last, classId, height, weight });
+    let photoFail = '';
+    if (draftPhoto) { try { await uploadPhoto(s, draftPhoto); } catch (x) { photoFail = x.message; } }
+    closeSheets(); render();
+    if (photoFail) toast('Saved, but the photo didn’t upload: ' + photoFail, true);
+    else toast(isAdd ? 'Student added' : 'Changes saved');
+  } catch (x) { toast('Didn’t save: ' + x.message, true); }
+  finally { btn.disabled = false; }
+}
+async function removeStudent() {
+  const s = editing; if (!s?.id) return;
+  if (!confirm(`Remove ${fullName(s)}? You can restore them from The Pond hub.`)) return;
+  const { error } = await sb.from('beta_students').update({ archived: true, updated_at: new Date().toISOString() }).eq('id', s.id);
+  if (error) return toast('Couldn’t remove: ' + error.message, true);
+  students = students.filter(x => x.id !== s.id);
+  closeSheets(); render(); toast('Student removed');
+}
+
+// IMPORT
+function openImport() { $('imText').value = ''; importPlan = null; $('imPreview').textContent = ''; $('imGo').disabled = true; openSheet('import'); }
+function parseRoster(text) {
+  let j;
+  try { j = JSON.parse(text); } catch (e) { throw new Error('That isn’t valid JSON yet. Look for a missing comma, quote or bracket.'); }
+  const list = Array.isArray(j) ? j : j?.classes;
+  if (!Array.isArray(list) || !list.length) throw new Error('Couldn’t find a "classes" list.');
+  return list.map(c => {
+    const className = String(c?.className ?? c?.name ?? '').trim();
+    if (!className) throw new Error('One class is missing its "className".');
+    const sts = (Array.isArray(c.students) ? c.students : [])
+      .map(s => typeof s === 'string' ? splitName(s) : { first: String(s?.firstName ?? s?.first ?? '').trim(), last: String(s?.lastName ?? s?.last ?? '').trim() })
+      .filter(s => s.first);
+    return { className, students: sts };
+  });
+}
+function planImport() {
+  const t = $('imText').value.trim(); importPlan = null; $('imGo').disabled = true;
+  if (!t) { $('imPreview').textContent = ''; return; }
+  try {
+    const groups = parseRoster(t);
+    const have = new Set(students.map(s => (clsOf(s.classId)?.name || '').toLowerCase() + '|' + fullName(s).toLowerCase()));
+    let add = 0, dup = 0;
+    importPlan = groups.map(g => {
+      const fresh = [];
+      for (const st of g.students) {
+        const k = g.className.toLowerCase() + '|' + `${st.first} ${st.last}`.trim().toLowerCase();
+        if (have.has(k)) { dup++; continue; }
+        have.add(k); fresh.push(st); add++;
+      }
+      return { className: g.className, students: fresh };
+    });
+    $('imPreview').innerHTML = `<b>${add}</b> new student${add === 1 ? '' : 's'} in <b>${groups.length}</b> element${groups.length === 1 ? '' : 's'}${dup ? `. ${dup} already here will be skipped.` : '.'}`;
+    $('imGo').disabled = add === 0;
+  } catch (e) { $('imPreview').innerHTML = `<span class="bad">${esc(e.message)}</span>`; }
+}
+async function runImport() {
+  if (!importPlan) return;
+  const btn = $('imGo'); btn.disabled = true;
+  const total = importPlan.reduce((n, g) => n + g.students.length, 0); let done = 0;
+  try {
+    for (const g of importPlan) {
+      if (!g.students.length) continue;
+      const classId = await ensureClass(g.className);
+      const rows = await Promise.all(g.students.map(async st => ({
+        class_id: classId, name_encrypted: await enc(`${st.first} ${st.last}`.trim()),
+        first_name_encrypted: await enc(st.first), last_name_encrypted: await encOrNull(st.last), archived: false
+      })));
+      for (let i = 0; i < rows.length; i += 100) {
+        const batch = rows.slice(i, i + 100);
+        const { error } = await sb.from('beta_students').insert(batch);
+        if (error) throw error;
+        done += batch.length; $('imPreview').textContent = `Importing… ${done} of ${total}`;
+      }
+    }
+    closeSheets(); toast(`Imported ${done} students`); await loadAll();
+  } catch (e) {
+    await loadAll(); planImport();
+    $('imPreview').innerHTML = `<span class="bad">Stopped after ${done} of ${total}: ${esc(e.message)}. Tap Import again to finish the rest.</span>`;
+  } finally { btn.disabled = !importPlan; }
+}
+async function copyPrompt() {
+  try { await navigator.clipboard.writeText(AI_PROMPT); toast('Copied. Paste it into any AI chat, then paste your roster under it.'); }
+  catch (e) { toast('Copy was blocked by the browser.', true); }
+}
+
+// HOME SCREEN ICON
+(function () {
+  try {
+    const c = document.createElement('canvas'); c.width = c.height = 180; const x = c.getContext('2d');
+    x.fillStyle = '#06131A'; x.fillRect(0, 0, 180, 180);
+    x.strokeStyle = '#5BE38A'; x.lineWidth = 7; x.beginPath(); x.roundRect ? x.roundRect(24, 20, 132, 140, 22) : x.rect(24, 20, 132, 140); x.stroke();
+    x.fillStyle = '#5BE38A'; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.font = '800 70px sans-serif'; x.fillText('Ps', 90, 96);
+    x.font = '700 18px sans-serif'; x.textAlign = 'left'; x.fillText('1', 38, 40);
+    const l = document.createElement('link'); l.rel = 'apple-touch-icon'; l.href = c.toDataURL('image/png'); document.head.appendChild(l);
+  } catch (e) {}
+})();
+
+// BOOT
+$('feed').href = CFG.SUPPORT_URL;
+$('signInBtn').onclick = signIn;
+$('passForm').onsubmit = submitPass;
+$('passOut').onclick = () => sb.auth.signOut();
+$('menuBtn').onclick = () => openSheet('menu');
+$('addBtn').onclick = () => key ? openEdit(null) : openPass();
+$('scrim').onclick = closeSheets;
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheets(); });
+$('q').oninput = debounce(e => { query = e.target.value; renderList(); }, 120);
+$('missBtn').onclick = () => { prefs.missing = !prefs.missing; savePrefs(); renderList(); };
+document.querySelectorAll('[data-sort]').forEach(b => b.onclick = () => { prefs.sort = b.dataset.sort; savePrefs(); render(); });
+$('tiles').onclick = e => { const t = e.target.closest('[data-filter]'); if (!t) return; prefs.filter = t.dataset.filter; savePrefs(); render(); window.scrollTo({ top: 0 }); };
+$('list').onclick = e => {
+  const cam = e.target.closest('[data-cam]'); if (cam) return quickCam(cam.dataset.cam);
+  const ed = e.target.closest('[data-edit]'); if (ed) return openEdit(ed.dataset.edit);
+  if (e.target.closest('[data-action="import"]')) openImport();
+};
+$('quickCam').onchange = onQuickCam;
+$('edCam').onchange = onEdPhoto;
+$('edLib').onchange = onEdPhoto;
+$('edNoPhoto').onclick = onEdNoPhoto;
+$('edEl').onchange = () => { $('edNewWrap').classList.toggle('hidden', $('edEl').value !== '__new'); renderEdPhoto(); if ($('edEl').value === '__new') $('edNewEl').focus(); };
+$('edSave').onclick = saveEdit;
+$('edRemove').onclick = removeStudent;
+$('imText').oninput = debounce(planImport, 250);
+$('imFile').onchange = async e => { const f = e.target.files[0]; e.target.value = ''; if (!f) return; $('imText').value = await f.text(); planImport(); };
+$('imPrompt').onclick = copyPrompt;
+$('imGo').onclick = runImport;
+$('mImport').onclick = () => key ? openImport() : openPass();
+$('mRefresh').onclick = () => { closeSheets(); if (key) loadAll(); };
+$('mLock').onclick = lock;
+$('mOut').onclick = () => { closeSheets(); sb.auth.signOut(); };
+render();
+initAuth();
+</script>
+</body>
+</html>
